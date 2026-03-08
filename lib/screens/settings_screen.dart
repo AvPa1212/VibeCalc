@@ -1,22 +1,30 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../theme/theme_provider.dart';
+import '../widgets/theme_picker.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final theme = context.read<ThemeProvider>();
+    final theme = Theme.of(context);
 
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+    return Scaffold(
+      appBar: AppBar(title: const Text('Settings')),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ElevatedButton(
-              onPressed: theme.setNeon, child: const Text("Neon")),
-          ElevatedButton(
-              onPressed: theme.setSunset, child: const Text("Sunset")),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+            child: Text(
+              'Appearance',
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.primaryColor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const Divider(height: 1),
+          const Expanded(child: ThemePicker()),
         ],
       ),
     );

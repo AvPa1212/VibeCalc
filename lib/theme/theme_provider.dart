@@ -1,25 +1,28 @@
 import 'package:flutter/material.dart';
+import 'themes.dart';
 
 class ThemeProvider extends ChangeNotifier {
-  ThemeData currentTheme = neon;
+  String _currentThemeName = 'VibeDark';
 
-  static final neon = ThemeData.dark().copyWith(
-    primaryColor: Colors.cyanAccent,
-    scaffoldBackgroundColor: const Color(0xFF0F0F1B),
-  );
+  ThemeData get currentTheme =>
+      AppThemes.themes[_currentThemeName] ?? AppThemes.vibeDark;
 
-  static final sunset = ThemeData.dark().copyWith(
-    primaryColor: Colors.orangeAccent,
-    scaffoldBackgroundColor: const Color(0xFF1A0F0F),
-  );
+  String get currentThemeName => _currentThemeName;
 
-  void setNeon() {
-    currentTheme = neon;
-    notifyListeners();
+  static List<String> get themeNames => AppThemes.themes.keys.toList();
+
+  static Color themeColorFor(String name) {
+    return AppThemes.themes[name]?.primaryColor ?? Colors.cyanAccent;
   }
 
-  void setSunset() {
-    currentTheme = sunset;
-    notifyListeners();
+  void setTheme(String name) {
+    if (AppThemes.themes.containsKey(name)) {
+      _currentThemeName = name;
+      notifyListeners();
+    }
   }
+
+  // Backward-compatible helpers
+  void setNeon() => setTheme('VibeDark');
+  void setSunset() => setTheme('Sunset');
 }

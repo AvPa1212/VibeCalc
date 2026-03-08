@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/math_engine.dart';
+import '../core/constants.dart';
 
 class CalculatorModel extends ChangeNotifier {
   String expression = "";
@@ -8,6 +9,12 @@ class CalculatorModel extends ChangeNotifier {
 
   void add(String value) {
     expression += value;
+    notifyListeners();
+  }
+
+  void setExpression(String value) {
+    expression = value;
+    result = "0";
     notifyListeners();
   }
 
@@ -24,11 +31,40 @@ class CalculatorModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void evaluate() {
-    result = MathEngine.evaluate(expression);
-    if (result != "Error") {
-      history.insert(0, "$expression = $result");
+  void addPercent() {
+    if (expression.isNotEmpty) {
+      final num = double.tryParse(expression);
+      if (num != null) {
+        expression = (num / 100).toString();
+        notifyListeners();
+      }
     }
+  }
+
+  void evaluate() {
+    if (expression.isEmpty) return;
+    final r = MathEngine.evaluate(expression);
+    if (r != "Error") {
+      final entry = "$expression = $r";
+      history.insert(0, entry);
+      if (history.length > AppConstants.maxHistory) {
+        history.removeLast();
+      }
+      expression = r;
+    }
+    result = r;
     notifyListeners();
+  }
+
+  void clearHistory() {
+    history.clear();
+    notifyListeners();
+  }
+
+  void removeHistoryAt(int index) {
+    if (index >= 0 && index < history.length) {
+      history.removeAt(index);
+      notifyListeners();
+    }
   }
 }

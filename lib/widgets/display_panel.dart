@@ -4,15 +4,15 @@ import 'package:flutter/services.dart';
 class DisplayPanel extends StatefulWidget {
   final String expression;
   final String result;
-  final VoidCallback onDelete;
-  final Function(String) onExpressionChanged;
+  final VoidCallback? onDelete;
+  final Function(String)? onExpressionChanged;
 
   const DisplayPanel({
     super.key,
     required this.expression,
     required this.result,
-    required this.onDelete,
-    required this.onExpressionChanged,
+    this.onDelete,
+    this.onExpressionChanged,
   });
 
   @override
@@ -63,8 +63,9 @@ class _DisplayPanelState extends State<DisplayPanel>
     return GestureDetector(
       onHorizontalDragEnd: (details) {
         if (details.primaryVelocity != null &&
-            details.primaryVelocity! > 300) {
-          widget.onDelete();
+            details.primaryVelocity! > 300 &&
+            widget.onDelete != null) {
+          widget.onDelete!();
           HapticFeedback.lightImpact();
         }
       },

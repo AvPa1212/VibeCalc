@@ -1,4 +1,4 @@
-import 'dart:math';
+import 'math_engine.dart';
 
 class Complex {
   final double real;
@@ -32,5 +32,13 @@ class Complex {
     if (imaginary == 0) return real.toString();
     if (real == 0) return '${imaginary}i';
     return '$real ${imaginary >= 0 ? '+' : '-'} ${imaginary.abs()}i';
+  }
+}
+
+/// High-level engine used by ScientificLayout.
+/// Delegates to [MathEngine] for real-number evaluation.
+class ComplexEngine {
+  String evaluate(String expression) {
+    return MathEngine.evaluate(expression);
   }
 }

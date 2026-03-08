@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../services/graph_engine.dart';
+import '../core/constants.dart';
 
 class GraphScreen extends StatefulWidget {
   const GraphScreen({super.key});
@@ -171,7 +172,7 @@ class _GraphScreenState extends State<GraphScreen> {
                           bottomTitles: AxisTitles(
                             sideTitles: SideTitles(
                               showTitles: true,
-                              interval: (_maxX - _minX) / 5,
+                              interval: (_maxX - _minX) / AppConstants.graphAxisDivisions,
                               getTitlesWidget: (value, _) => Text(
                                 value.toStringAsPrecision(3),
                                 style: TextStyle(

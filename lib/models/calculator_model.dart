@@ -33,9 +33,9 @@ class CalculatorModel extends ChangeNotifier {
 
   void addPercent() {
     if (expression.isNotEmpty) {
-      final num = double.tryParse(expression);
-      if (num != null) {
-        expression = (num / 100).toString();
+      final value = double.tryParse(expression);
+      if (value != null) {
+        expression = (value / 100).toString();
         notifyListeners();
       }
     }

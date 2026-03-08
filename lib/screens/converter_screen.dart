@@ -51,7 +51,13 @@ class _ConverterScreenState extends State<ConverterScreen> {
   void _initUnits() {
     final units = _units;
     _fromUnit = units.isNotEmpty ? units.first : null;
-    _toUnit = units.length > 1 ? units[1] : (units.isNotEmpty ? units.first : null);
+    if (units.length > 1) {
+      _toUnit = units[1];
+    } else if (units.isNotEmpty) {
+      _toUnit = units.first;
+    } else {
+      _toUnit = null;
+    }
   }
 
   String _categoryLabel(UnitCategory cat) {

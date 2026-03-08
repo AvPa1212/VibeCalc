@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../core/constants.dart';
 
 class DisplayPanel extends StatefulWidget {
   final String expression;
@@ -63,7 +64,7 @@ class _DisplayPanelState extends State<DisplayPanel>
     return GestureDetector(
       onHorizontalDragEnd: (details) {
         if (details.primaryVelocity != null &&
-            details.primaryVelocity! > 300 &&
+            details.primaryVelocity! > AppConstants.swipeDeleteVelocity &&
             widget.onDelete != null) {
           widget.onDelete!();
           HapticFeedback.lightImpact();

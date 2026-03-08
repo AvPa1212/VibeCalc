@@ -14,4 +14,10 @@ class AppConstants {
   // Default graph x-range
   static const double defaultMinX = -10.0;
   static const double defaultMaxX = 10.0;
+
+  // Number of axis divisions on the graph
+  static const int graphAxisDivisions = 5;
+
+  // Swipe velocity threshold to trigger backspace in DisplayPanel
+  static const double swipeDeleteVelocity = 300.0;
 }

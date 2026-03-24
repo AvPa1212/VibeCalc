@@ -62,7 +62,6 @@ class _AnimatedCalcButtonState extends State<AnimatedCalcButton>
   void _handleTapUp(TapUpDetails details) {
     _controller.reverse();
     setState(() => _isPressed = false);
-    widget.onTap();
   }
 
   void _handleTapCancel() {
@@ -90,49 +89,47 @@ class _AnimatedCalcButtonState extends State<AnimatedCalcButton>
           child: child,
         );
       },
-      child: GestureDetector(
-        onTapDown: _handleTapDown,
-        onTapUp: _handleTapUp,
-        onTapCancel: _handleTapCancel,
-        onLongPress: widget.onLongPress,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
-          decoration: BoxDecoration(
-            color: baseColor,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              if (widget.glow || _isPressed)
-                BoxShadow(
-                  color: baseColor.withValues(alpha: 0.6),
-                  blurRadius: 20,
-                  spreadRadius: 1,
-                ),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        decoration: BoxDecoration(
+          color: baseColor,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            if (widget.glow || _isPressed)
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.25),
-                offset: const Offset(0, 6),
-                blurRadius: 10,
+                color: baseColor.withValues(alpha: 0.6),
+                blurRadius: 20,
+                spreadRadius: 1,
               ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.25),
+              offset: const Offset(0, 6),
+              blurRadius: 10,
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(24),
+          child: InkWell(
             borderRadius: BorderRadius.circular(24),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(24),
-              splashColor: theme.colorScheme.secondary.withValues(alpha: 0.3),
-              highlightColor: Colors.transparent,
-              onTap: () {}, // handled above
-              child: Center(
-                child: AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 150),
-                  style: TextStyle(
-                    fontSize: widget.fontSize,
-                    fontWeight: FontWeight.w600,
-                    color: textColor,
-                  ),
-                  child: Text(widget.label),
+            splashColor: theme.colorScheme.secondary.withValues(alpha: 0.3),
+            highlightColor: Colors.transparent,
+            onTapDown: _handleTapDown,
+            onTapUp: _handleTapUp,
+            onTapCancel: _handleTapCancel,
+            onLongPress: widget.onLongPress,
+            onTap: widget.onTap,
+            child: Center(
+              child: AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 150),
+                style: TextStyle(
+                  fontSize: widget.fontSize,
+                  fontWeight: FontWeight.w600,
+                  color: textColor,
                 ),
+                child: Text(widget.label),
               ),
             ),
           ),

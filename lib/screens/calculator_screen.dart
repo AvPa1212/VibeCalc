@@ -55,6 +55,7 @@ class CalculatorScreen extends StatelessWidget {
         },
       ),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Display area - flexible, responsive
           Flexible(
@@ -69,35 +70,49 @@ class CalculatorScreen extends StatelessWidget {
           // Button grid - fills remaining space
           Expanded(
             flex: 2,
-            child: GridView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: buttons.length,
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                childAspectRatio: 1.0,
-                crossAxisSpacing: 1,
-                mainAxisSpacing: 1,
-              ),
-              itemBuilder: (_, i) {
-                final label = buttons[i];
-                final isOperator = ['/', '*', '-', '+'].contains(label);
-                final isEquals = label == '=';
-                final isSpecial = ['AC', '⌫', '%'].contains(label);
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                const columns = 4;
+                const rows = 5;
+                const spacing = 2.0;
 
-                Color? btnColor;
-                if (isEquals) btnColor = theme.primaryColor;
-                if (isSpecial) {
-                  btnColor = theme.colorScheme.surface.withValues(alpha: 0.6);
-                }
+                final itemWidth =
+                    (constraints.maxWidth - (columns - 1) * spacing) / columns;
+                final itemHeight =
+                    (constraints.maxHeight - (rows - 1) * spacing) / rows;
+                final ratio = itemWidth / itemHeight;
 
-                return AnimatedCalcButton(
-                  label: label,
-                  onTap: () => _handleButton(label, model),
-                  isOperator: isOperator || isEquals,
-                  color: btnColor,
-                  textColor: isEquals ? Colors.black : null,
-                  glow: isEquals,
+                return GridView.builder(
+                  padding: EdgeInsets.zero,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: buttons.length,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: columns,
+                    childAspectRatio: ratio,
+                    crossAxisSpacing: spacing,
+                    mainAxisSpacing: spacing,
+                  ),
+                  itemBuilder: (_, i) {
+                    final label = buttons[i];
+                    final isOperator = ['/', '*', '-', '+'].contains(label);
+                    final isEquals = label == '=';
+                    final isSpecial = ['AC', '⌫', '%'].contains(label);
+
+                    Color? btnColor;
+                    if (isEquals) btnColor = theme.primaryColor;
+                    if (isSpecial) {
+                      btnColor = theme.colorScheme.surface.withValues(alpha: 0.6);
+                    }
+
+                    return AnimatedCalcButton(
+                      label: label,
+                      onTap: () => _handleButton(label, model),
+                      isOperator: isOperator || isEquals,
+                      color: btnColor,
+                      textColor: isEquals ? Colors.black : null,
+                      glow: isEquals,
+                    );
+                  },
                 );
               },
             ),
@@ -111,14 +126,19 @@ class CalculatorScreen extends StatelessWidget {
     switch (label) {
       case 'AC':
         model.clear();
+        return;
       case '⌫':
         model.deleteLast();
+        return;
       case '=':
         model.evaluate();
+        return;
       case '%':
         model.addPercent();
+        return;
       default:
         model.add(label);
+        return;
     }
   }
 }

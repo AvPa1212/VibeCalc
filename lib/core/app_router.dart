@@ -15,8 +15,8 @@ class AppRouter {
   static const String settingsRoute = '/settings';
 
   /// Route Generator
-  static Route<dynamic> generateRoute(RouteSettings settings) {
-    switch (settings.name) {
+  static Route<dynamic> generateRoute(RouteSettings routeSettings) {
+    switch (routeSettings.name) {
       case home:
         return _buildRoute(const HomeScreen());
 
@@ -47,11 +47,11 @@ class AppRouter {
   /// Error Route
   static Route<dynamic> _errorRoute() {
     return MaterialPageRoute(
-      builder: (_) => Scaffold(
+      builder: (_) => const Scaffold(
         body: Center(
           child: Text(
             '404 - Page Not Found',
-            style: const TextStyle(fontSize: 24),
+            style: TextStyle(fontSize: 24),
           ),
         ),
       ),

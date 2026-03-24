@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/calculator_model.dart';
-import '../widgets/calc_button.dart';
-import 'scientific_layout.dart';
+import '../widgets/animated_calc_button.dart';
+import '../widgets/display_panel.dart';
+import '../widgets/history_drawer.dart';
+import 'about_screen.dart';
 
 class CalculatorScreen extends StatelessWidget {
   const CalculatorScreen({super.key});
@@ -10,119 +12,113 @@ class CalculatorScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final model = context.watch<CalculatorModel>();
+    final theme = Theme.of(context);
 
-    return DefaultTabController(
-      length: 2,
-      child: SafeArea(
-        child: Column(
-          children: [
-            const TabBar(
-              tabs: [
-                Tab(icon: Icon(Icons.dialpad), text: 'Basic'),
-                Tab(icon: Icon(Icons.science), text: 'Scientific'),
-              ],
+    const buttons = [
+      'AC', '⌫', '%', '/',
+      '7',  '8',  '9', '*',
+      '4',  '5',  '6', '-',
+      '1',  '2',  '3', '+',
+      '(',  '0',  '.', '=',
+    ];
+
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: const Text('VibeCalc'),
+        centerTitle: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.info_outline),
+            tooltip: 'About',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const AboutScreen()),
             ),
-            Expanded(
-              child: TabBarView(
-                children: [
-                  _BasicCalculatorTab(model: model),
-                  const ScientificLayout(),
-                ],
+          ),
+          Builder(
+            builder: (ctx) => IconButton(
+              icon: const Icon(Icons.history),
+              tooltip: 'History',
+              onPressed: () => Scaffold.of(ctx).openEndDrawer(),
+            ),
+          ),
+        ],
+      ),
+      endDrawer: HistoryDrawer(
+        onItemSelected: (entry) {
+          // Load the result part of "expr = result" into the expression
+          final parts = entry.split(' = ');
+          if (parts.length == 2) {
+            model.setExpression(parts[1]);
+          }
+        },
+      ),
+      body: Column(
+        children: [
+          // Display area
+          Expanded(
+            flex: 2,
+            child: DisplayPanel(
+              expression: model.expression,
+              result: model.result,
+              onDelete: model.deleteLast,
+            ),
+          ),
+
+          // Button grid
+          Expanded(
+            flex: 5,
+            child: GridView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: buttons.length,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 4,
+                childAspectRatio: 1.15,
+                crossAxisSpacing: 4,
+                mainAxisSpacing: 4,
               ),
+              itemBuilder: (_, i) {
+                final label = buttons[i];
+                final isOperator = ['/', '*', '-', '+'].contains(label);
+                final isEquals = label == '=';
+                final isSpecial = ['AC', '⌫', '%'].contains(label);
+
+                Color? btnColor;
+                if (isEquals) btnColor = theme.primaryColor;
+                if (isSpecial) {
+                  btnColor = theme.colorScheme.surface.withOpacity(0.6);
+                }
+
+                return AnimatedCalcButton(
+                  label: label,
+                  onTap: () => _handleButton(label, model),
+                  isOperator: isOperator || isEquals,
+                  color: btnColor,
+                  textColor: isEquals ? Colors.black : null,
+                  glow: isEquals,
+                );
+              },
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
-}
 
-class _BasicCalculatorTab extends StatelessWidget {
-  final CalculatorModel model;
-
-  const _BasicCalculatorTab({required this.model});
-
-  @override
-  Widget build(BuildContext context) {
-    final buttons = [
-      'C',
-      '(',
-      ')',
-      '/',
-      '7',
-      '8',
-      '9',
-      '*',
-      '4',
-      '5',
-      '6',
-      '-',
-      '1',
-      '2',
-      '3',
-      '+',
-      '0',
-      '.',
-      '^',
-      '=',
-    ];
-
-    return Column(
-      children: [
-        Expanded(
-          flex: 2,
-          child: Dismissible(
-            key: const Key('expr'),
-            direction: DismissDirection.endToStart,
-            onDismissed: (_) => model.deleteLast(),
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              alignment: Alignment.bottomRight,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(model.expression, style: const TextStyle(fontSize: 28)),
-                  const SizedBox(height: 10),
-                  Text(
-                    model.result,
-                    style: const TextStyle(
-                      fontSize: 48,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        Expanded(
-          flex: 5,
-          child: GridView.builder(
-            padding: const EdgeInsets.all(8),
-            itemCount: buttons.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 4,
-              childAspectRatio: 1.2,
-            ),
-            itemBuilder: (_, i) {
-              final label = buttons[i];
-              return CalcButton(
-                label: label,
-                onTap: () {
-                  if (label == 'C') {
-                    model.clear();
-                  } else if (label == '=') {
-                    model.evaluate();
-                  } else {
-                    model.add(label);
-                  }
-                },
-              );
-            },
-          ),
-        ),
-      ],
-    );
+  void _handleButton(String label, CalculatorModel model) {
+    switch (label) {
+      case 'AC':
+        model.clear();
+      case '⌫':
+        model.deleteLast();
+      case '=':
+        model.evaluate();
+      case '%':
+        model.addPercent();
+      default:
+        model.add(label);
+    }
   }
 }

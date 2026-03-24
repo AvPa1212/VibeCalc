@@ -1,37 +1,23 @@
 class AppConstants {
+  // App name
   static const String appName = 'VibeCalc';
-}
 
-class ScientificButtons {
-  static const List<String> all = [
-    'sin',
-    'cos',
-    'tan',
-    'π',
-    'e',
-    'log',
-    'ln',
-    '^',
-    '√',
-    '(',
-    ')',
-    '7',
-    '8',
-    '9',
-    '/',
-    '4',
-    '5',
-    '6',
-    '*',
-    '-',
-    '1',
-    '2',
-    '3',
-    '+',
-    '.',
-    '0',
-    'AC',
-    '⌫',
-    '=',
-  ];
+  // Max history entries to keep
+  static const int maxHistory = 100;
+
+  // Display precision (significant digits)
+  static const int displayPrecision = 10;
+
+  // Graph resolution (number of points)
+  static const int graphResolution = 400;
+
+  // Default graph x-range
+  static const double defaultMinX = -10.0;
+  static const double defaultMaxX = 10.0;
+
+  // Number of axis divisions on the graph
+  static const int graphAxisDivisions = 5;
+
+  // Swipe velocity threshold to trigger backspace in DisplayPanel
+  static const double swipeDeleteVelocity = 300.0;
 }

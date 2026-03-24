@@ -12,9 +12,9 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int index = 0;
+  int _index = 0;
 
-  final screens = const [
+  final _screens = const [
     CalculatorScreen(),
     GraphScreen(),
     ConverterScreen(),
@@ -24,15 +24,28 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: screens[index],
+      body: _screens[_index],
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: index,
-        onTap: (i) => setState(() => index = i),
+        currentIndex: _index,
+        onTap: (i) => setState(() => _index = i),
+        type: BottomNavigationBarType.fixed,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.calculate), label: "Calc"),
-          BottomNavigationBarItem(icon: Icon(Icons.show_chart), label: "Graph"),
-          BottomNavigationBarItem(icon: Icon(Icons.swap_horiz), label: "Convert"),
-          BottomNavigationBarItem(icon: Icon(Icons.palette), label: "Theme"),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.calculate_outlined),
+              activeIcon: Icon(Icons.calculate),
+              label: 'Calc'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.show_chart_outlined),
+              activeIcon: Icon(Icons.show_chart),
+              label: 'Graph'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.swap_horiz_outlined),
+              activeIcon: Icon(Icons.swap_horiz),
+              label: 'Convert'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.settings_outlined),
+              activeIcon: Icon(Icons.settings),
+              label: 'Settings'),
         ],
       ),
     );

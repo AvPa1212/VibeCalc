@@ -1,4 +1,3 @@
-
 import 'math_engine.dart';
 
 class Complex {
@@ -36,16 +35,10 @@ class Complex {
   }
 }
 
+/// High-level engine used by ScientificLayout.
+/// Delegates to [MathEngine] for real-number evaluation.
 class ComplexEngine {
   String evaluate(String expression) {
-    final trimmed = expression.trim();
-    if (trimmed.isEmpty) return '0';
-
-    final normalized = trimmed
-        .replaceAll('π', 'pi')
-        .replaceAll('×', '*')
-        .replaceAll('÷', '/');
-
-    return MathEngine.evaluate(normalized);
+    return MathEngine.evaluate(expression);
   }
 }

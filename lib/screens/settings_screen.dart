@@ -8,22 +8,24 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Appearance', style: theme.textTheme.headlineSmall),
-            const SizedBox(height: 6),
-            Text(
-              'Pick a visual style for the calculator.',
-              style: theme.textTheme.bodyMedium,
+    return Scaffold(
+      appBar: AppBar(title: const Text('Settings')),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+            child: Text(
+              'Appearance',
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: theme.primaryColor,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-            const SizedBox(height: 16),
-            const Expanded(child: ThemePicker()),
-          ],
-        ),
+          ),
+          const Divider(height: 1),
+          const Expanded(child: ThemePicker()),
+        ],
       ),
     );
   }

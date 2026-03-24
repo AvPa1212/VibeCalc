@@ -41,39 +41,5 @@ dev_dependencies:
 
   flutter_lints: ^6.0.0
 
-  # App icon generator
-  flutter_launcher_icons: ^0.13.1
-
-  # Native splash generator
-  flutter_native_splash: ^2.4.1
-
 flutter:
   uses-material-design: true
-
-  assets:
-    - assets/icons/
-    - assets/themes/
-
-# ----------------------------
-# Launcher Icon Configuration
-# ----------------------------
-
-flutter_launcher_icons:
-  android: true
-  ios: true
-  image_path: "assets/icons/app_icon.png"
-  adaptive_icon_background: "#0F0F1A"
-  adaptive_icon_foreground: "assets/icons/app_icon.png"
-
-# ----------------------------
-# Native Splash Configuration
-# ----------------------------
-
-flutter_native_splash:
-  color: "#0F0F1A"
-  image: assets/icons/app_icon.png
-  android: true
-  ios: true
-  android_12:
-    image: assets/icons/app_icon.png
-    color: "#0F0F1A"

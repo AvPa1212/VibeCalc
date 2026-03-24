@@ -1,83 +1,90 @@
 import 'package:flutter/material.dart';
 
-enum AppThemeMode { neon, sunset }
-
-class AppThemeOption {
-  final AppThemeMode mode;
-  final String name;
-  final String subtitle;
-  final Color accent;
-
-  const AppThemeOption({
-    required this.mode,
-    required this.name,
-    required this.subtitle,
-    required this.accent,
-  });
-}
-
 class AppThemes {
-  static const options = [
-    AppThemeOption(
-      mode: AppThemeMode.neon,
-      name: 'Neon Grid',
-      subtitle: 'Cool cyan highlights for technical work',
-      accent: Color(0xFF15E8FF),
-    ),
-    AppThemeOption(
-      mode: AppThemeMode.sunset,
-      name: 'Sunset Ember',
-      subtitle: 'Warm amber contrast for long sessions',
-      accent: Color(0xFFFFA457),
-    ),
-  ];
-
-  static ThemeData resolve(AppThemeMode mode) {
-    switch (mode) {
-      case AppThemeMode.neon:
-        return _buildTheme(
-          seed: const Color(0xFF15E8FF),
-          scaffold: const Color(0xFF090E16),
-        );
-      case AppThemeMode.sunset:
-        return _buildTheme(
-          seed: const Color(0xFFFFA457),
-          scaffold: const Color(0xFF1A1010),
-        );
-    }
-  }
-
-  static ThemeData _buildTheme({
-    required Color seed,
-    required Color scaffold,
-  }) {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: seed,
-      brightness: Brightness.dark,
-    );
-
-    return ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.dark,
-      colorScheme: scheme,
-      scaffoldBackgroundColor: scaffold,
-      appBarTheme: AppBarTheme(
-        backgroundColor: scaffold,
-        foregroundColor: scheme.onSurface,
-        elevation: 0,
-      ),
-      cardTheme: CardThemeData(
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
+  static ThemeData get vibeDark => ThemeData.dark().copyWith(
+        primaryColor: Colors.cyanAccent,
+        scaffoldBackgroundColor: const Color(0xFF0F0F1B),
+        colorScheme: const ColorScheme.dark(
+          primary: Colors.cyanAccent,
+          secondary: Colors.cyan,
+          surface: Color(0xFF1A1A2E),
+          onSurface: Colors.white,
         ),
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
-      ),
-      bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: scaffold,
-        selectedItemColor: scheme.primary,
-        unselectedItemColor: scheme.onSurface.withValues(alpha: 0.7),
-      ),
-    );
-  }
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF1A1A2E),
+          foregroundColor: Colors.cyanAccent,
+        ),
+        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+          backgroundColor: Color(0xFF1A1A2E),
+          selectedItemColor: Colors.cyanAccent,
+          unselectedItemColor: Colors.white54,
+        ),
+      );
+
+  static ThemeData get sunset => ThemeData.dark().copyWith(
+        primaryColor: Colors.orangeAccent,
+        scaffoldBackgroundColor: const Color(0xFF1A0F0F),
+        colorScheme: const ColorScheme.dark(
+          primary: Colors.orangeAccent,
+          secondary: Colors.deepOrange,
+          surface: Color(0xFF2E1A1A),
+          onSurface: Colors.white,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF2E1A1A),
+          foregroundColor: Colors.orangeAccent,
+        ),
+        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+          backgroundColor: Color(0xFF2E1A1A),
+          selectedItemColor: Colors.orangeAccent,
+          unselectedItemColor: Colors.white54,
+        ),
+      );
+
+  static ThemeData get midnight => ThemeData.dark().copyWith(
+        primaryColor: Colors.purpleAccent,
+        scaffoldBackgroundColor: const Color(0xFF0D0D1A),
+        colorScheme: const ColorScheme.dark(
+          primary: Colors.purpleAccent,
+          secondary: Colors.deepPurple,
+          surface: Color(0xFF1A1A2E),
+          onSurface: Colors.white,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF1A1A2E),
+          foregroundColor: Colors.purpleAccent,
+        ),
+        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+          backgroundColor: Color(0xFF1A1A2E),
+          selectedItemColor: Colors.purpleAccent,
+          unselectedItemColor: Colors.white54,
+        ),
+      );
+
+  static ThemeData get forest => ThemeData.dark().copyWith(
+        primaryColor: Colors.greenAccent,
+        scaffoldBackgroundColor: const Color(0xFF0A1A0A),
+        colorScheme: const ColorScheme.dark(
+          primary: Colors.greenAccent,
+          secondary: Colors.green,
+          surface: Color(0xFF1A2E1A),
+          onSurface: Colors.white,
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF1A2E1A),
+          foregroundColor: Colors.greenAccent,
+        ),
+        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+          backgroundColor: Color(0xFF1A2E1A),
+          selectedItemColor: Colors.greenAccent,
+          unselectedItemColor: Colors.white54,
+        ),
+      );
+
+  static final Map<String, ThemeData> themes = {
+    'VibeDark': vibeDark,
+    'Sunset': sunset,
+    'Midnight': midnight,
+    'Forest': forest,
+  };
 }

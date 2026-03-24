@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../services/persistence_service.dart';
+import 'package:provider/provider.dart';
+import '../models/calculator_model.dart';
 
-class HistoryDrawer extends StatefulWidget {
+class HistoryDrawer extends StatelessWidget {
   final Function(String) onItemSelected;
 
   const HistoryDrawer({
@@ -11,42 +12,10 @@ class HistoryDrawer extends StatefulWidget {
   });
 
   @override
-  State<HistoryDrawer> createState() => _HistoryDrawerState();
-}
-
-class _HistoryDrawerState extends State<HistoryDrawer>
-    with SingleTickerProviderStateMixin {
-  List<String> history = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadHistory();
-  }
-
-  void _loadHistory() {
-    setState(() {
-      history = PersistenceService().getHistory();
-    });
-  }
-
-  Future<void> _deleteItem(int index) async {
-    setState(() {
-      history.removeAt(index);
-    });
-    await PersistenceService().saveHistory(history);
-    HapticFeedback.lightImpact();
-  }
-
-  Future<void> _clearAll() async {
-    await PersistenceService().clearHistory();
-    setState(() => history.clear());
-    HapticFeedback.mediumImpact();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final model = context.watch<CalculatorModel>();
+    final history = model.history;
 
     return Drawer(
       backgroundColor: Colors.transparent,
@@ -72,7 +41,7 @@ class _HistoryDrawerState extends State<HistoryDrawer>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      "History",
+                      'History',
                       style: theme.textTheme.titleLarge,
                     ),
                     IconButton(
@@ -83,29 +52,30 @@ class _HistoryDrawerState extends State<HistoryDrawer>
                               final confirm = await showDialog<bool>(
                                 context: context,
                                 builder: (_) => AlertDialog(
-                                  title: const Text("Clear History?"),
+                                  title: const Text('Clear History?'),
                                   content: const Text(
-                                      "This will permanently delete all entries."),
+                                      'This will delete all entries.'),
                                   actions: [
                                     TextButton(
                                       onPressed: () =>
                                           Navigator.pop(context, false),
-                                      child: const Text("Cancel"),
+                                      child: const Text('Cancel'),
                                     ),
                                     TextButton(
                                       onPressed: () =>
                                           Navigator.pop(context, true),
-                                      child: const Text("Clear"),
+                                      child: const Text('Clear'),
                                     ),
                                   ],
                                 ),
                               );
 
                               if (confirm == true) {
-                                _clearAll();
+                                model.clearHistory();
+                                HapticFeedback.mediumImpact();
                               }
                             },
-                    )
+                    ),
                   ],
                 ),
               ),
@@ -117,7 +87,7 @@ class _HistoryDrawerState extends State<HistoryDrawer>
                 child: history.isEmpty
                     ? Center(
                         child: Text(
-                          "No calculations yet",
+                          'No calculations yet',
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.colorScheme.onSurface
                                 .withValues(alpha: 0.5),
@@ -130,16 +100,19 @@ class _HistoryDrawerState extends State<HistoryDrawer>
                           final item = history[index];
 
                           return Dismissible(
-                            key: ValueKey(item + index.toString()),
+                            key: ValueKey('$item$index'),
                             direction: DismissDirection.endToStart,
-                            onDismissed: (_) => _deleteItem(index),
+                            onDismissed: (_) {
+                              model.removeHistoryAt(index);
+                              HapticFeedback.lightImpact();
+                            },
                             background: Container(
                               alignment: Alignment.centerRight,
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 20),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 20),
                               color: Colors.redAccent,
-                              child: const Icon(Icons.delete,
-                                  color: Colors.white),
+                              child:
+                                  const Icon(Icons.delete, color: Colors.white),
                             ),
                             child: ListTile(
                               title: Text(
@@ -148,7 +121,7 @@ class _HistoryDrawerState extends State<HistoryDrawer>
                                 overflow: TextOverflow.ellipsis,
                               ),
                               onTap: () {
-                                widget.onItemSelected(item);
+                                onItemSelected(item);
                                 Navigator.pop(context);
                                 HapticFeedback.selectionClick();
                               },
@@ -157,14 +130,14 @@ class _HistoryDrawerState extends State<HistoryDrawer>
                                 await Clipboard.setData(
                                     ClipboardData(text: item));
                                 HapticFeedback.mediumImpact();
-                                if (!context.mounted) return;
-
-                                messenger.showSnackBar(
-                                  const SnackBar(
-                                    content: Text("Copied to clipboard"),
-                                    duration: Duration(seconds: 1),
-                                  ),
-                                );
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Copied to clipboard'),
+                                      duration: Duration(seconds: 1),
+                                    ),
+                                  );
+                                }
                               },
                             ),
                           );

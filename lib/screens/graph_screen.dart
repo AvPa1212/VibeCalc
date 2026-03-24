@@ -160,12 +160,12 @@ class _GraphScreenState extends State<GraphScreen> {
                           show: true,
                           getDrawingHorizontalLine: (_) => FlLine(
                               color: theme.colorScheme.onSurface
-                                  .withValues(alpha: 0.1),
-                              strokeWidth: 1),
+                                  .withValues(alpha: 0.15),
+                              strokeWidth: 2.5),
                           getDrawingVerticalLine: (_) => FlLine(
                               color: theme.colorScheme.onSurface
-                                  .withValues(alpha: 0.1),
-                              strokeWidth: 1),
+                                  .withValues(alpha: 0.15),
+                              strokeWidth: 2.5),
                         ),
                         borderData: FlBorderData(show: false),
                         titlesData: FlTitlesData(
@@ -177,8 +177,9 @@ class _GraphScreenState extends State<GraphScreen> {
                                 value.toStringAsPrecision(3),
                                 style: TextStyle(
                                   color: theme.colorScheme.onSurface
-                                      .withValues(alpha: 0.5),
-                                  fontSize: 10,
+                                      .withValues(alpha: 0.7),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -191,8 +192,9 @@ class _GraphScreenState extends State<GraphScreen> {
                                 value.toStringAsPrecision(3),
                                 style: TextStyle(
                                   color: theme.colorScheme.onSurface
-                                      .withValues(alpha: 0.5),
-                                  fontSize: 10,
+                                      .withValues(alpha: 0.7),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),

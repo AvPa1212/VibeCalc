@@ -71,7 +71,7 @@ class _DisplayPanelState extends State<DisplayPanel>
         }
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
@@ -108,7 +108,7 @@ class _DisplayPanelState extends State<DisplayPanel>
               ),
             ),
 
-            const SizedBox(height: 10),
+            const SizedBox(height: 2),
 
             /// Animated Result
             FadeTransition(

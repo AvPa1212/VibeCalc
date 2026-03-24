@@ -56,9 +56,9 @@ class CalculatorScreen extends StatelessWidget {
       ),
       body: Column(
         children: [
-          // Display area
-          Expanded(
-            flex: 2,
+          // Display area - flexible, responsive
+          Flexible(
+            flex: 1,
             child: DisplayPanel(
               expression: model.expression,
               result: model.result,
@@ -66,18 +66,18 @@ class CalculatorScreen extends StatelessWidget {
             ),
           ),
 
-          // Button grid
+          // Button grid - fills remaining space
           Expanded(
-            flex: 5,
+            flex: 2,
             child: GridView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
               physics: const NeverScrollableScrollPhysics(),
               itemCount: buttons.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 4,
-                childAspectRatio: 1.15,
-                crossAxisSpacing: 4,
-                mainAxisSpacing: 4,
+                childAspectRatio: 1.0,
+                crossAxisSpacing: 1,
+                mainAxisSpacing: 1,
               ),
               itemBuilder: (_, i) {
                 final label = buttons[i];

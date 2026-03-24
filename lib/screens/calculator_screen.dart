@@ -88,7 +88,7 @@ class CalculatorScreen extends StatelessWidget {
                 Color? btnColor;
                 if (isEquals) btnColor = theme.primaryColor;
                 if (isSpecial) {
-                  btnColor = theme.colorScheme.surface.withOpacity(0.6);
+                  btnColor = theme.colorScheme.surface.withValues(alpha: 0.6);
                 }
 
                 return AnimatedCalcButton(

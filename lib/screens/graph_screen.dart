@@ -147,7 +147,7 @@ class _GraphScreenState extends State<GraphScreen> {
                         'No data to display',
                         style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.colorScheme.onSurface
-                                .withOpacity(0.5)),
+                                .withValues(alpha: 0.5)),
                       ),
                     )
                   : LineChart(
@@ -160,11 +160,11 @@ class _GraphScreenState extends State<GraphScreen> {
                           show: true,
                           getDrawingHorizontalLine: (_) => FlLine(
                               color: theme.colorScheme.onSurface
-                                  .withOpacity(0.1),
+                                  .withValues(alpha: 0.1),
                               strokeWidth: 1),
                           getDrawingVerticalLine: (_) => FlLine(
                               color: theme.colorScheme.onSurface
-                                  .withOpacity(0.1),
+                                  .withValues(alpha: 0.1),
                               strokeWidth: 1),
                         ),
                         borderData: FlBorderData(show: false),
@@ -177,7 +177,7 @@ class _GraphScreenState extends State<GraphScreen> {
                                 value.toStringAsPrecision(3),
                                 style: TextStyle(
                                   color: theme.colorScheme.onSurface
-                                      .withOpacity(0.5),
+                                      .withValues(alpha: 0.5),
                                   fontSize: 10,
                                 ),
                               ),
@@ -191,7 +191,7 @@ class _GraphScreenState extends State<GraphScreen> {
                                 value.toStringAsPrecision(3),
                                 style: TextStyle(
                                   color: theme.colorScheme.onSurface
-                                      .withOpacity(0.5),
+                                      .withValues(alpha: 0.5),
                                   fontSize: 10,
                                 ),
                               ),
@@ -211,7 +211,7 @@ class _GraphScreenState extends State<GraphScreen> {
                             dotData: const FlDotData(show: false),
                             belowBarData: BarAreaData(
                               show: true,
-                              color: theme.primaryColor.withOpacity(0.1),
+                              color: theme.primaryColor.withValues(alpha: 0.1),
                             ),
                           ),
                         ],

@@ -126,7 +126,6 @@ class HistoryDrawer extends StatelessWidget {
                                 HapticFeedback.selectionClick();
                               },
                               onLongPress: () async {
-                                final messenger = ScaffoldMessenger.of(context);
                                 await Clipboard.setData(
                                     ClipboardData(text: item));
                                 HapticFeedback.mediumImpact();

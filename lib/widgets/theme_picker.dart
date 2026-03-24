@@ -19,7 +19,7 @@ class ThemePicker extends StatelessWidget {
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 6),
           color: isSelected
-              ? color.withOpacity(0.15)
+              ? color.withValues(alpha: 0.15)
               : theme.colorScheme.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),

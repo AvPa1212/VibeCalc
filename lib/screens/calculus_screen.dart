@@ -260,7 +260,7 @@ Widget _buildResult(BuildContext context, String result) {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.primaryColor.withOpacity(0.4)),
+        border: Border.all(color: theme.primaryColor.withValues(alpha: 0.4)),
       ),
       child: Text(
         result,

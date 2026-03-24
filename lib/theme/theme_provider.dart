@@ -15,10 +15,6 @@ class ThemeProvider extends ChangeNotifier {
     return AppThemes.themes[name]?.primaryColor ?? Colors.cyanAccent;
   }
 
-  void setNeon() {
-    setTheme(AppThemeMode.neon);
-  }
-
   void setTheme(String name) {
     if (AppThemes.themes.containsKey(name)) {
       _currentThemeName = name;
@@ -26,7 +22,6 @@ class ThemeProvider extends ChangeNotifier {
     }
   }
 
-  // Backward-compatible helpers
   void setNeon() => setTheme('VibeDark');
   void setSunset() => setTheme('Sunset');
 }

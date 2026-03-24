@@ -17,7 +17,7 @@ class AboutScreen extends StatelessWidget {
             const SizedBox(height: 16),
             CircleAvatar(
               radius: 48,
-              backgroundColor: theme.primaryColor.withOpacity(0.2),
+              backgroundColor: theme.primaryColor.withValues(alpha: 0.2),
               child: Icon(Icons.calculate,
                   size: 48, color: theme.primaryColor),
             ),
@@ -33,7 +33,7 @@ class AboutScreen extends StatelessWidget {
             Text(
               'Version 1.0.0',
               style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.5)),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5)),
             ),
             const SizedBox(height: 32),
             _FeatureTile(
@@ -106,7 +106,7 @@ class _FeatureTile extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
+              color: color.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(icon, color: color, size: 24),
@@ -123,7 +123,7 @@ class _FeatureTile extends StatelessWidget {
                 Text(
                   description,
                   style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withOpacity(0.6)),
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
                 ),
               ],
             ),

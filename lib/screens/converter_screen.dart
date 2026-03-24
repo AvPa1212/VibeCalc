@@ -80,7 +80,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
             Text('Category', style: theme.textTheme.labelLarge),
             const SizedBox(height: 8),
             DropdownButtonFormField<UnitCategory>(
-              value: _category,
+              initialValue: _category,
               decoration: InputDecoration(
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12)),
@@ -109,6 +109,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
             TextFormField(
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
+              initialValue: '0',
               decoration: InputDecoration(
                 hintText: 'Enter value',
                 border: OutlineInputBorder(
@@ -117,8 +118,10 @@ class _ConverterScreenState extends State<ConverterScreen> {
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
               onChanged: (v) {
-                _inputValue = double.tryParse(v) ?? 0;
-                if (_result.isNotEmpty) _convert();
+                setState(() {
+                  _inputValue = double.tryParse(v) ?? 0;
+                  if (_result.isNotEmpty) _convert();
+                });
               },
             ),
 
@@ -134,7 +137,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
                       Text('From', style: theme.textTheme.labelLarge),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<String>(
-                        value: _fromUnit,
+                        initialValue: _fromUnit,
                         decoration: InputDecoration(
                           border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12)),
@@ -163,7 +166,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
                       Text('To', style: theme.textTheme.labelLarge),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<String>(
-                        value: _toUnit,
+                        initialValue: _toUnit,
                         decoration: InputDecoration(
                           border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12)),
@@ -197,26 +200,26 @@ class _ConverterScreenState extends State<ConverterScreen> {
               child: const Text('Convert',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
-
-            if (_result.isNotEmpty) ...[
-              const SizedBox(height: 24),
+            const SizedBox(height: 20),
+            if (_result.isNotEmpty)
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: theme.primaryColor.withOpacity(0.4)),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: theme.primaryColor.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Text(
                   _result,
-                  style: theme.textTheme.titleMedium?.copyWith(
+                  style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.primaryColor,
-                    fontWeight: FontWeight.bold,
+                    fontFamily: 'monospace',
                   ),
                   textAlign: TextAlign.center,
                 ),
               ),
-            ],
           ],
         ),
       ),

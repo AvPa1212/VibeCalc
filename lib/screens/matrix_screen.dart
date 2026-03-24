@@ -137,7 +137,7 @@ class _MatrixScreenState extends State<MatrixScreen> {
                   color: theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(16),
                   border:
-                      Border.all(color: theme.primaryColor.withOpacity(0.4)),
+                      Border.all(color: theme.primaryColor.withValues(alpha: 0.4)),
                 ),
                 child: Text(
                   _result,
@@ -225,7 +225,7 @@ class _OpChip extends StatelessWidget {
     return ChoiceChip(
       label: Text(label),
       selected: isSelected,
-      selectedColor: theme.primaryColor.withOpacity(0.3),
+      selectedColor: theme.primaryColor.withValues(alpha: 0.3),
       onSelected: (_) => onSelect(value),
     );
   }

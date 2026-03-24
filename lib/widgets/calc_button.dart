@@ -39,7 +39,7 @@ class _CalcButtonState extends State<CalcButton>
           margin: const EdgeInsets.all(6),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            color: Theme.of(context).primaryColor.withOpacity(0.2),
+            color: Theme.of(context).primaryColor.withValues(alpha: 0.2),
           ),
           child: Center(
             child: Text(widget.label,

@@ -1,4 +1,5 @@
-import 'dart:math';
+
+import 'math_engine.dart';
 
 class Complex {
   final double real;
@@ -32,5 +33,19 @@ class Complex {
     if (imaginary == 0) return real.toString();
     if (real == 0) return '${imaginary}i';
     return '$real ${imaginary >= 0 ? '+' : '-'} ${imaginary.abs()}i';
+  }
+}
+
+class ComplexEngine {
+  String evaluate(String expression) {
+    final trimmed = expression.trim();
+    if (trimmed.isEmpty) return '0';
+
+    final normalized = trimmed
+        .replaceAll('π', 'pi')
+        .replaceAll('×', '*')
+        .replaceAll('÷', '/');
+
+    return MathEngine.evaluate(normalized);
   }
 }

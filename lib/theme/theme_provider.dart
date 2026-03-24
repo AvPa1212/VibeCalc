@@ -1,25 +1,24 @@
 import 'package:flutter/material.dart';
+import 'themes.dart';
 
 class ThemeProvider extends ChangeNotifier {
-  ThemeData currentTheme = neon;
+  AppThemeMode _currentMode = AppThemeMode.neon;
 
-  static final neon = ThemeData.dark().copyWith(
-    primaryColor: Colors.cyanAccent,
-    scaffoldBackgroundColor: const Color(0xFF0F0F1B),
-  );
+  ThemeData get currentTheme => AppThemes.resolve(_currentMode);
 
-  static final sunset = ThemeData.dark().copyWith(
-    primaryColor: Colors.orangeAccent,
-    scaffoldBackgroundColor: const Color(0xFF1A0F0F),
-  );
+  AppThemeMode get currentMode => _currentMode;
 
-  void setNeon() {
-    currentTheme = neon;
+  void setTheme(AppThemeMode mode) {
+    if (mode == _currentMode) return;
+    _currentMode = mode;
     notifyListeners();
   }
 
+  void setNeon() {
+    setTheme(AppThemeMode.neon);
+  }
+
   void setSunset() {
-    currentTheme = sunset;
-    notifyListeners();
+    setTheme(AppThemeMode.sunset);
   }
 }

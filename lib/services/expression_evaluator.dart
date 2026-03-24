@@ -1,4 +1,3 @@
-import 'dart:math';
 
 class ExpressionEvaluator {
   static String evaluate(String expression) {

@@ -104,12 +104,12 @@ class _AnimatedCalcButtonState extends State<AnimatedCalcButton>
             boxShadow: [
               if (widget.glow || _isPressed)
                 BoxShadow(
-                  color: baseColor.withOpacity(0.6),
+                  color: baseColor.withValues(alpha: 0.6),
                   blurRadius: 20,
                   spreadRadius: 1,
                 ),
               BoxShadow(
-                color: Colors.black.withOpacity(0.25),
+                color: Colors.black.withValues(alpha: 0.25),
                 offset: const Offset(0, 6),
                 blurRadius: 10,
               ),
@@ -120,7 +120,7 @@ class _AnimatedCalcButtonState extends State<AnimatedCalcButton>
             borderRadius: BorderRadius.circular(24),
             child: InkWell(
               borderRadius: BorderRadius.circular(24),
-              splashColor: theme.colorScheme.secondary.withOpacity(0.3),
+              splashColor: theme.colorScheme.secondary.withValues(alpha: 0.3),
               highlightColor: Colors.transparent,
               onTap: () {}, // handled above
               child: Center(

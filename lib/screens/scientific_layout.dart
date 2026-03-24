@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../services/complex_engine.dart';
+import '../services/complex_engine.dart';
 import '../widgets/animated_calc_button.dart';
 import '../widgets/display_panel.dart';
 
@@ -15,24 +15,23 @@ class _ScientificLayoutState extends State<ScientificLayout> {
   String _expression = '';
   String _result = '0';
 
-  void _onButtonTap(String value) {
+  void _onButtonTap(String label) {
     setState(() {
-      if (value == 'AC') {
+      if (label == 'AC') {
         _expression = '';
         _result = '0';
-      } else if (value == '⌫') {
+      } else if (label == '⌫') {
         if (_expression.isNotEmpty) {
-          _expression =
-              _expression.substring(0, _expression.length - 1);
+          _expression = _expression.substring(0, _expression.length - 1);
         }
-      } else if (value == '=') {
+      } else if (label == '=') {
         try {
           _result = _engine.evaluate(_expression);
-        } catch (e) {
+        } catch (_) {
           _result = 'Error';
         }
       } else {
-        _expression += value;
+        _expression += _mapLabel(label);
       }
     });
   }
@@ -41,29 +40,40 @@ class _ScientificLayoutState extends State<ScientificLayout> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        /// DISPLAY PANEL
+        // Display panel.
         Expanded(
           flex: 2,
           child: DisplayPanel(
             expression: _expression,
             result: _result,
+            onDelete: () => _onButtonTap('⌫'),
+            onExpressionChanged: (value) {
+              setState(() => _expression = value);
+            },
           ),
         ),
 
-        /// BUTTON GRID
+        // Responsive button grid.
         Expanded(
           flex: 5,
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: LayoutBuilder(
               builder: (context, constraints) {
+                const spacing = 8.0;
+                final crossAxisCount =
+                    (constraints.maxWidth / 76).floor().clamp(4, 6);
+                final buttonWidth =
+                    (constraints.maxWidth - (crossAxisCount - 1) * spacing) /
+                        crossAxisCount;
+                final rows = (29 / crossAxisCount).ceil();
                 final buttonHeight =
-                    constraints.maxHeight / 6 - 10;
+                    (constraints.maxHeight - (rows - 1) * spacing) / rows;
 
                 return Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _buildButtons(buttonHeight),
+                  spacing: spacing,
+                  runSpacing: spacing,
+                  children: _buildButtons(buttonHeight, buttonWidth),
                 );
               },
             ),
@@ -73,7 +83,7 @@ class _ScientificLayoutState extends State<ScientificLayout> {
     );
   }
 
-  List<Widget> _buildButtons(double height) {
+  List<Widget> _buildButtons(double height, double width) {
     final buttons = [
       'sin', 'cos', 'tan', 'π', 'e',
       'log', 'ln', '^', '√', '(',
@@ -85,11 +95,11 @@ class _ScientificLayoutState extends State<ScientificLayout> {
 
     return buttons.map((label) {
       return SizedBox(
-        width: 70,
+        width: width,
         height: height,
         child: AnimatedCalcButton(
           label: label,
-          onTap: () => _onButtonTap(_mapLabel(label)),
+          onTap: () => _onButtonTap(label),
         ),
       );
     }).toList();

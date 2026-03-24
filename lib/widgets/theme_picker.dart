@@ -1,178 +1,72 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import '../services/persistence_service.dart';
+import 'package:provider/provider.dart';
 
-class HistoryDrawer extends StatefulWidget {
-  final Function(String) onItemSelected;
+import '../theme/theme_provider.dart';
+import '../theme/themes.dart';
 
-  const HistoryDrawer({
-    super.key,
-    required this.onItemSelected,
-  });
-
-  @override
-  State<HistoryDrawer> createState() => _HistoryDrawerState();
-}
-
-class _HistoryDrawerState extends State<HistoryDrawer>
-    with SingleTickerProviderStateMixin {
-  List<String> history = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadHistory();
-  }
-
-  void _loadHistory() {
-    setState(() {
-      history = PersistenceService().getHistory();
-    });
-  }
-
-  Future<void> _deleteItem(int index) async {
-    setState(() {
-      history.removeAt(index);
-    });
-    await PersistenceService().saveHistory(history);
-    HapticFeedback.lightImpact();
-  }
-
-  Future<void> _clearAll() async {
-    await PersistenceService().clearHistory();
-    setState(() => history.clear());
-    HapticFeedback.mediumImpact();
-  }
+class ThemePicker extends StatelessWidget {
+  const ThemePicker({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<ThemeProvider>();
     final theme = Theme.of(context);
 
-    return Drawer(
-      backgroundColor: Colors.transparent,
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              theme.colorScheme.surface.withOpacity(0.95),
-              theme.colorScheme.surface.withOpacity(0.85),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              /// Header
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      "History",
-                      style: theme.textTheme.titleLarge,
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: history.isEmpty
-                          ? null
-                          : () async {
-                              final confirm = await showDialog<bool>(
-                                context: context,
-                                builder: (_) => AlertDialog(
-                                  title: const Text("Clear History?"),
-                                  content: const Text(
-                                      "This will permanently delete all entries."),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context, false),
-                                      child: const Text("Cancel"),
-                                    ),
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(context, true),
-                                      child: const Text("Clear"),
-                                    ),
-                                  ],
-                                ),
-                              );
+    return ListView.separated(
+      shrinkWrap: true,
+      itemCount: AppThemes.options.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (context, index) {
+        final option = AppThemes.options[index];
+        final selected = provider.currentMode == option.mode;
 
-                              if (confirm == true) {
-                                _clearAll();
-                              }
-                            },
-                    )
-                  ],
+        return InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () => context.read<ThemeProvider>().setTheme(option.mode),
+          child: Ink(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              color: theme.colorScheme.surfaceContainerHighest
+                  .withValues(alpha: selected ? 0.5 : 0.28),
+              border: Border.all(
+                color: selected
+                    ? option.accent
+                    : theme.colorScheme.outline.withValues(alpha: 0.35),
+                width: selected ? 2 : 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 12,
+                  backgroundColor: option.accent,
                 ),
-              ),
-
-              const Divider(height: 1),
-
-              /// History List
-              Expanded(
-                child: history.isEmpty
-                    ? Center(
-                        child: Text(
-                          "No calculations yet",
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurface
-                                .withOpacity(0.5),
-                          ),
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: history.length,
-                        itemBuilder: (context, index) {
-                          final item = history[index];
-
-                          return Dismissible(
-                            key: ValueKey(item + index.toString()),
-                            direction: DismissDirection.endToStart,
-                            onDismissed: (_) => _deleteItem(index),
-                            background: Container(
-                              alignment: Alignment.centerRight,
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 20),
-                              color: Colors.redAccent,
-                              child: const Icon(Icons.delete,
-                                  color: Colors.white),
-                            ),
-                            child: ListTile(
-                              title: Text(
-                                item,
-                                style: theme.textTheme.bodyMedium,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              onTap: () {
-                                widget.onItemSelected(item);
-                                Navigator.pop(context);
-                                HapticFeedback.selectionClick();
-                              },
-                              onLongPress: () async {
-                                await Clipboard.setData(
-                                    ClipboardData(text: item));
-                                HapticFeedback.mediumImpact();
-
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text("Copied to clipboard"),
-                                    duration: Duration(seconds: 1),
-                                  ),
-                                );
-                              },
-                            ),
-                          );
-                        },
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(option.name, style: theme.textTheme.titleMedium),
+                      const SizedBox(height: 2),
+                      Text(
+                        option.subtitle,
+                        style: theme.textTheme.bodySmall,
                       ),
-              ),
-            ],
+                    ],
+                  ),
+                ),
+                Icon(
+                  selected
+                      ? Icons.check_circle
+                      : Icons.radio_button_unchecked,
+                  color: selected ? option.accent : theme.colorScheme.outline,
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

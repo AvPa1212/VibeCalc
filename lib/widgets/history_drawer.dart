@@ -54,8 +54,8 @@ class _HistoryDrawerState extends State<HistoryDrawer>
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              theme.colorScheme.surface.withOpacity(0.95),
-              theme.colorScheme.surface.withOpacity(0.85),
+              theme.colorScheme.surface.withValues(alpha: 0.95),
+              theme.colorScheme.surface.withValues(alpha: 0.85),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -120,7 +120,7 @@ class _HistoryDrawerState extends State<HistoryDrawer>
                           "No calculations yet",
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.colorScheme.onSurface
-                                .withOpacity(0.5),
+                                .withValues(alpha: 0.5),
                           ),
                         ),
                       )
@@ -153,11 +153,13 @@ class _HistoryDrawerState extends State<HistoryDrawer>
                                 HapticFeedback.selectionClick();
                               },
                               onLongPress: () async {
+                                final messenger = ScaffoldMessenger.of(context);
                                 await Clipboard.setData(
                                     ClipboardData(text: item));
                                 HapticFeedback.mediumImpact();
+                                if (!context.mounted) return;
 
-                                ScaffoldMessenger.of(context).showSnackBar(
+                                messenger.showSnackBar(
                                   const SnackBar(
                                     content: Text("Copied to clipboard"),
                                     duration: Duration(seconds: 1),

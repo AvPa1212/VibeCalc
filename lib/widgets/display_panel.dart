@@ -74,7 +74,7 @@ class _DisplayPanelState extends State<DisplayPanel>
           gradient: LinearGradient(
             colors: [
               theme.colorScheme.surface,
-              theme.colorScheme.surface.withOpacity(0.9),
+              theme.colorScheme.surface.withValues(alpha: 0.9),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -84,7 +84,7 @@ class _DisplayPanelState extends State<DisplayPanel>
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               blurRadius: 20,
               offset: const Offset(0, 10),
             )
@@ -101,7 +101,7 @@ class _DisplayPanelState extends State<DisplayPanel>
               child: Text(
                 widget.expression,
                 style: theme.textTheme.titleLarge?.copyWith(
-                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
               ),
             ),

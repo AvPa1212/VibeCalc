@@ -12,7 +12,7 @@ class AppRouter {
   static const String graph = '/graph';
   static const String unit = '/unit';
   static const String scientific = '/scientific';
-  static const String settings = '/settings';
+  static const String settingsRoute = '/settings';
 
   /// Route Generator
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -29,7 +29,7 @@ class AppRouter {
       case scientific:
         return _buildRoute(const ScientificLayout());
 
-      case settings:
+      case settingsRoute:
         return _buildRoute(const SettingsScreen());
 
       default:

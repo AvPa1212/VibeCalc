@@ -1,11 +1,24 @@
 import 'package:math_expressions/math_expressions.dart';
 
+import 'deterministic_expression_engine.dart';
+
 class MathEngine {
   static final GrammarParser _parser = GrammarParser();
   static final ContextModel _context = ContextModel();
 
   static String evaluate(String expression) {
     try {
+      if (_isDeterministicCandidate(expression)) {
+        final deterministic = DeterministicExpressionEngine.evaluate(
+          expression,
+          notation: InputNotation.infix,
+        );
+        final value = deterministic.displayValue;
+        if (value != 'Error') {
+          return value;
+        }
+      }
+
       expression = expression
           .replaceAll("π", "pi")
           .replaceAll("√", "sqrt");
@@ -19,6 +32,12 @@ class MathEngine {
     } catch (_) {
       return "Error";
     }
+  }
+
+  static bool _isDeterministicCandidate(String expression) {
+    final sanitized = expression.replaceAll(' ', '');
+    if (sanitized.isEmpty) return false;
+    return RegExp(r'^[0-9+\-*/^().]+$').hasMatch(sanitized);
   }
 
   static String _formatResult(double value) {

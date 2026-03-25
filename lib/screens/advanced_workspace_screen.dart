@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/deterministic_expression_engine.dart';
+import '../services/rewrite_trace_engine.dart';
 
 class AdvancedWorkspaceScreen extends StatefulWidget {
   const AdvancedWorkspaceScreen({super.key});
@@ -14,10 +15,14 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
   late final TabController _tabController;
   final TextEditingController _inputController =
       TextEditingController(text: '(2+3)*(7-4)/5');
+  final TextEditingController _rulePatternController = TextEditingController();
+  final TextEditingController _ruleReplacementController = TextEditingController();
 
   InputNotation _notation = InputNotation.infix;
   String _result = 'Run an expression to preview deterministic evaluation.';
   String _tree = 'AST will appear here.';
+  List<RewriteStep> _traceSteps = const [];
+  final List<RewriteRule> _userRules = [];
 
   static const List<_ModuleGroup> _groups = [
     _ModuleGroup('1-3 Input / Core / Graphing', [
@@ -55,13 +60,15 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     _inputController.dispose();
+    _rulePatternController.dispose();
+    _ruleReplacementController.dispose();
     super.dispose();
   }
 
@@ -75,13 +82,39 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
       setState(() {
         _result = r.displayValue;
         _tree = r.ast.pretty();
+        _traceSteps = RewriteTraceEngine.trace(
+          _inputController.text,
+          userRules: _userRules,
+        ).steps;
       });
     } catch (e) {
       setState(() {
         _result = 'Error: $e';
         _tree = 'AST unavailable due to parser error.';
+        _traceSteps = const [];
       });
     }
+  }
+
+  void _addUserRule() {
+    final pattern = _rulePatternController.text.trim();
+    final replacement = _ruleReplacementController.text.trim();
+    if (pattern.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _userRules.add(
+        RewriteRule(
+          id: 'user-${_userRules.length + 1}',
+          name: 'User Rule ${_userRules.length + 1}',
+          pattern: pattern,
+          replacement: replacement,
+        ),
+      );
+      _rulePatternController.clear();
+      _ruleReplacementController.clear();
+    });
   }
 
   @override
@@ -95,6 +128,7 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
           controller: _tabController,
           tabs: const [
             Tab(icon: Icon(Icons.input), text: 'Input Lab'),
+            Tab(icon: Icon(Icons.alt_route), text: 'Trace'),
             Tab(icon: Icon(Icons.account_tree), text: 'AST'),
             Tab(icon: Icon(Icons.hub), text: 'Modules'),
           ],
@@ -145,6 +179,72 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
                 SelectableText(
                   _result,
                   style: theme.textTheme.headlineSmall,
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Rule-based Rewrite Trace',
+                  style: theme.textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _rulePatternController,
+                  decoration: const InputDecoration(
+                    labelText: 'Custom regex pattern',
+                    hintText: 'Example: x\\^2',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _ruleReplacementController,
+                  decoration: const InputDecoration(
+                    labelText: 'Replacement',
+                    hintText: 'Example: (x)*(x)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    FilledButton.icon(
+                      onPressed: _addUserRule,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add Rule'),
+                    ),
+                    const SizedBox(width: 8),
+                    OutlinedButton.icon(
+                      onPressed: _evaluate,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Re-run Trace'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: _traceSteps.isEmpty
+                      ? const Center(
+                          child: Text('No rewrite steps yet. Evaluate an expression.'),
+                        )
+                      : ListView.builder(
+                          itemCount: _traceSteps.length,
+                          itemBuilder: (_, i) {
+                            final step = _traceSteps[i];
+                            return Card(
+                              child: ListTile(
+                                leading: Text('${i + 1}'),
+                                title: Text(step.ruleName),
+                                subtitle: Text('${step.before} -> ${step.after}'),
+                              ),
+                            );
+                          },
+                        ),
                 ),
               ],
             ),

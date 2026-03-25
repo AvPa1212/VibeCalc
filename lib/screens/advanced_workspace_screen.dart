@@ -6,6 +6,8 @@ import '../services/deterministic_expression_engine.dart';
 import '../services/graph_engine.dart';
 import '../services/latex_input_adapter.dart';
 import '../services/math_engine.dart';
+import '../services/notebook_code_executor.dart';
+import '../services/notebook_dependency_engine.dart';
 import '../services/rewrite_trace_engine.dart';
 import '../services/workspace_snapshot_service.dart';
 
@@ -32,6 +34,11 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
   List<WorkspaceCell> _cells = [];
   final Map<String, List<FlSpot>> _cellGraphSpots = {};
   final Map<String, String> _notebookVariables = {};
+  List<NotebookDependencyEdge> _dependencyEdges = const [];
+  bool _autoRecompute = false;
+  final Map<String, _CellExecutionState> _cellExecution = {};
+  final Map<String, List<CodeStep>> _codeStepTraces = {};
+  int _executionBudgetMs = 80;
 
   static const List<_ModuleGroup> _groups = [
     _ModuleGroup('1-3 Input / Core / Graphing', [
@@ -79,6 +86,7 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
       ),
     ];
     _loadSnapshot();
+    _recomputeDependencies();
   }
 
   @override
@@ -170,6 +178,7 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
               ),
             ]
           : snapshot.cells;
+      _recomputeDependencies();
     });
   }
 
@@ -184,12 +193,16 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
           output: '',
         ),
       ];
+      _recomputeDependencies();
     });
   }
 
   void _removeCell(String id) {
     setState(() {
       _cells = _cells.where((cell) => cell.id != id).toList();
+      _cellGraphSpots.remove(id);
+      _codeStepTraces.remove(id);
+      _recomputeDependencies();
     });
   }
 
@@ -198,7 +211,12 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
       _cells = _cells
           .map((cell) => cell.id == id ? cell.copyWith(content: content) : cell)
           .toList();
+      _recomputeDependencies();
     });
+
+    if (_autoRecompute) {
+      _runAllCells();
+    }
   }
 
   void _setCellOutput(String id, String output) {
@@ -208,12 +226,22 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
   }
 
   void _runCell(WorkspaceCell cell) {
+    final stopwatch = Stopwatch()..start();
+    setState(() {
+      _cellExecution[cell.id] = const _CellExecutionState(status: 'running');
+    });
+
     try {
       if (cell.type == WorkspaceCellType.math) {
         final expr = _toRuntimeExpression(cell.content);
         final result = MathEngine.evaluate(expr);
+        stopwatch.stop();
         setState(() {
           _setCellOutput(cell.id, result == 'Error' ? 'Error' : '= $result');
+          _cellExecution[cell.id] = _CellExecutionState(
+            status: result == 'Error' ? 'error' : 'ok',
+            runtimeMs: stopwatch.elapsedMilliseconds,
+          );
         });
         return;
       }
@@ -227,9 +255,14 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
           resolution: 140,
         );
 
+        stopwatch.stop();
         setState(() {
           _cellGraphSpots[cell.id] = spots;
           _setCellOutput(cell.id, 'Rendered ${spots.length} points');
+          _cellExecution[cell.id] = _CellExecutionState(
+            status: 'ok',
+            runtimeMs: stopwatch.elapsedMilliseconds,
+          );
         });
         return;
       }
@@ -239,57 +272,168 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
         final words = text.trim().isEmpty
             ? 0
             : text.trim().split(RegExp(r'\s+')).length;
+        stopwatch.stop();
         setState(() {
           _setCellOutput(cell.id, '$words words, ${text.length} chars');
+          _cellExecution[cell.id] = _CellExecutionState(
+            status: 'ok',
+            runtimeMs: stopwatch.elapsedMilliseconds,
+          );
         });
         return;
       }
 
-      _runCodeCell(cell);
+      final hasError = _runCodeCell(cell, recordSteps: false);
+      stopwatch.stop();
+      setState(() {
+        _cellExecution[cell.id] = _CellExecutionState(
+          status: hasError ? 'error' : 'ok',
+          runtimeMs: stopwatch.elapsedMilliseconds,
+        );
+      });
     } catch (e) {
+      stopwatch.stop();
       setState(() {
         _setCellOutput(cell.id, 'Error: $e');
+        _cellExecution[cell.id] = _CellExecutionState(
+          status: 'error',
+          runtimeMs: stopwatch.elapsedMilliseconds,
+          message: e.toString(),
+        );
       });
     }
   }
 
-  void _runCodeCell(WorkspaceCell cell) {
-    final lines = cell.content.split('\n');
-    final logs = <String>[];
+  void _runAllCells() {
+    _notebookVariables.clear();
+    final order = NotebookDependencyEngine.topologicalOrder(_cells);
+    final byId = {for (final c in _cells) c.id: c};
 
-    for (final rawLine in lines) {
-      final line = rawLine.trim();
-      if (line.isEmpty) {
-        continue;
+    if (order.cycleCellIds.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Dependency cycle detected for ${order.cycleCellIds.length} cell(s). Running in visual order.',
+          ),
+        ),
+      );
+      for (final c in _cells) {
+        _runCell(c);
       }
-
-      if (line.startsWith('print ')) {
-        final expr = line.substring(6).trim();
-        final value = MathEngine.evaluate(_toRuntimeExpression(expr));
-        logs.add(value == 'Error' ? 'print error: $expr' : value);
-        continue;
-      }
-
-      final assign = RegExp(r'^([a-zA-Z_]\w*)\s*=\s*(.+)$').firstMatch(line);
-      if (assign != null) {
-        final name = assign.group(1)!;
-        final expr = assign.group(2)!;
-        final value = MathEngine.evaluate(_toRuntimeExpression(expr));
-        if (value == 'Error') {
-          logs.add('$name assignment error');
-        } else {
-          _notebookVariables[name] = value;
-          logs.add('$name = $value');
-        }
-        continue;
-      }
-
-      logs.add('Unsupported statement: $line');
+      return;
     }
 
+    for (final id in order.orderedCellIds) {
+      final cell = byId[id];
+      if (cell != null) {
+        _runCell(cell);
+      }
+    }
+  }
+
+  void _recomputeDependencies() {
+    _dependencyEdges = NotebookDependencyEngine.buildEdges(_cells);
+  }
+
+  String _cellOrdinalById(String id) {
+    final index = _cells.indexWhere((c) => c.id == id);
+    if (index < 0) {
+      return '?';
+    }
+    return (index + 1).toString();
+  }
+
+  bool _runCodeCell(WorkspaceCell cell, {required bool recordSteps}) {
+    final result = NotebookCodeExecutor.execute(
+      code: cell.content,
+      initialVariables: _notebookVariables,
+      maxSteps: 500,
+      timeBudgetMs: _executionBudgetMs,
+    );
+
+    _notebookVariables
+      ..clear()
+      ..addAll(result.variables);
+
     setState(() {
-      _setCellOutput(cell.id, logs.isEmpty ? 'No output' : logs.join('\n'));
+      _setCellOutput(
+        cell.id,
+        result.outputLines.isEmpty ? 'No output' : result.outputLines.join('\n'),
+      );
+      if (recordSteps) {
+        _codeStepTraces[cell.id] = result.steps;
+      }
     });
+
+    if (result.timedOut) {
+      return true;
+    }
+
+    return result.steps.any((s) => s.status == 'error');
+  }
+
+  void _debugCodeCell(WorkspaceCell cell) {
+    final stopwatch = Stopwatch()..start();
+    setState(() {
+      _cellExecution[cell.id] = const _CellExecutionState(status: 'running');
+    });
+
+    final hasError = _runCodeCell(cell, recordSteps: true);
+    final steps = _codeStepTraces[cell.id] ?? const <CodeStep>[];
+
+    stopwatch.stop();
+    setState(() {
+      _cellExecution[cell.id] = _CellExecutionState(
+        status: hasError ? 'error' : 'ok',
+        runtimeMs: stopwatch.elapsedMilliseconds,
+      );
+    });
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) {
+        return SafeArea(
+          child: SizedBox(
+            height: MediaQuery.of(ctx).size.height * 0.75,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                  child: Text('Step Debug Trace', style: Theme.of(ctx).textTheme.titleLarge),
+                ),
+                Expanded(
+                  child: steps.isEmpty
+                      ? const Center(child: Text('No steps recorded.'))
+                      : ListView.builder(
+                          itemCount: steps.length,
+                          itemBuilder: (_, i) {
+                            final step = steps[i];
+                            final before = step.beforeVariables.entries
+                                .map((e) => '${e.key}=${e.value}')
+                                .join(', ');
+                            final after = step.afterVariables.entries
+                                .map((e) => '${e.key}=${e.value}')
+                                .join(', ');
+                            return ListTile(
+                              leading: Text('${i + 1}'),
+                              title: Text('L${step.lineNumber}: ${step.line}'),
+                              subtitle: Text(
+                                '${step.message}\nBefore: ${before.isEmpty ? '-' : before}\nAfter: ${after.isEmpty ? '-' : after}',
+                              ),
+                              isThreeLine: true,
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   String _toRuntimeExpression(String input) {
@@ -523,8 +667,69 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
                       icon: const Icon(Icons.download_outlined),
                       label: const Text('Load Snapshot'),
                     ),
+                    OutlinedButton.icon(
+                      onPressed: _runAllCells,
+                      icon: const Icon(Icons.playlist_play),
+                      label: const Text('Run All Cells'),
+                    ),
                   ],
                 ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Switch(
+                      value: _autoRecompute,
+                      onChanged: (v) => setState(() => _autoRecompute = v),
+                    ),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text('Auto recompute on content changes'),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    const Text('Execution budget (ms):'),
+                    Expanded(
+                      child: Slider(
+                        value: _executionBudgetMs.toDouble(),
+                        min: 20,
+                        max: 500,
+                        divisions: 24,
+                        label: '$_executionBudgetMs',
+                        onChanged: (v) {
+                          setState(() => _executionBudgetMs = v.round());
+                        },
+                      ),
+                    ),
+                    Text('$_executionBudgetMs'),
+                  ],
+                ),
+                if (_dependencyEdges.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _dependencyEdges
+                          .map(
+                            (edge) => Chip(
+                              label: Text(
+                                'Cell ${_cellOrdinalById(edge.fromCellId)} -> Cell ${_cellOrdinalById(edge.toCellId)} (${edge.variable})',
+                              ),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 10),
                 Expanded(
                   child: _cells.isEmpty
@@ -548,11 +753,51 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
                                           style: theme.textTheme.titleSmall,
                                         ),
                                         const Spacer(),
+                                        Builder(
+                                          builder: (_) {
+                                            final exec = _cellExecution[cell.id];
+                                            final status = exec?.status ?? 'idle';
+                                            Color color;
+                                            switch (status) {
+                                              case 'ok':
+                                                color = Colors.green;
+                                                break;
+                                              case 'error':
+                                                color = Colors.redAccent;
+                                                break;
+                                              case 'running':
+                                                color = Colors.orange;
+                                                break;
+                                              default:
+                                                color = theme.colorScheme.outline;
+                                            }
+                                            return Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(Icons.circle, size: 10, color: color),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  exec == null
+                                                      ? 'idle'
+                                                      : '${exec.status} ${exec.runtimeMs}ms',
+                                                  style: theme.textTheme.bodySmall,
+                                                ),
+                                              ],
+                                            );
+                                          },
+                                        ),
+                                        const SizedBox(width: 6),
                                         IconButton(
                                           tooltip: 'Run cell',
                                           onPressed: () => _runCell(cell),
                                           icon: const Icon(Icons.play_arrow),
                                         ),
+                                        if (cell.type == WorkspaceCellType.code)
+                                          IconButton(
+                                            tooltip: 'Step debug cell',
+                                            onPressed: () => _debugCodeCell(cell),
+                                            icon: const Icon(Icons.bug_report_outlined),
+                                          ),
                                         IconButton(
                                           tooltip: 'Remove cell',
                                           onPressed: () => _removeCell(cell.id),
@@ -621,6 +866,30 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
                           },
                         ),
                 ),
+                if (_notebookVariables.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _notebookVariables.entries
+                          .map(
+                            (entry) => Chip(
+                              avatar: const Icon(Icons.data_object, size: 16),
+                              label: Text('${entry.key} = ${entry.value}'),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -657,4 +926,16 @@ class _ModuleGroup {
   final List<String> items;
 
   const _ModuleGroup(this.title, this.items);
+}
+
+class _CellExecutionState {
+  final String status;
+  final int runtimeMs;
+  final String message;
+
+  const _CellExecutionState({
+    required this.status,
+    this.runtimeMs = 0,
+    this.message = '',
+  });
 }

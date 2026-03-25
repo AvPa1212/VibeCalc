@@ -32,22 +32,26 @@ class WorkspaceCell {
   final String id;
   final WorkspaceCellType type;
   final String content;
+  final String output;
 
   const WorkspaceCell({
     required this.id,
     required this.type,
     required this.content,
+    this.output = '',
   });
 
   WorkspaceCell copyWith({
     String? id,
     WorkspaceCellType? type,
     String? content,
+    String? output,
   }) {
     return WorkspaceCell(
       id: id ?? this.id,
       type: type ?? this.type,
       content: content ?? this.content,
+      output: output ?? this.output,
     );
   }
 
@@ -56,6 +60,7 @@ class WorkspaceCell {
       'id': id,
       'type': workspaceCellTypeToString(type),
       'content': content,
+      'output': output,
     };
   }
 
@@ -64,6 +69,7 @@ class WorkspaceCell {
       id: (json['id'] ?? '').toString(),
       type: workspaceCellTypeFromString((json['type'] ?? 'text').toString()),
       content: (json['content'] ?? '').toString(),
+      output: (json['output'] ?? '').toString(),
     );
   }
 }

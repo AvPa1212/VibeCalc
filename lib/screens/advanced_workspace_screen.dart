@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 import '../models/workspace_cell.dart';
 import '../services/deterministic_expression_engine.dart';
+import '../services/graph_engine.dart';
+import '../services/latex_input_adapter.dart';
+import '../services/math_engine.dart';
 import '../services/rewrite_trace_engine.dart';
 import '../services/workspace_snapshot_service.dart';
 
@@ -26,6 +30,8 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
   List<RewriteStep> _traceSteps = const [];
   final List<RewriteRule> _userRules = [];
   List<WorkspaceCell> _cells = [];
+  final Map<String, List<FlSpot>> _cellGraphSpots = {};
+  final Map<String, String> _notebookVariables = {};
 
   static const List<_ModuleGroup> _groups = [
     _ModuleGroup('1-3 Input / Core / Graphing', [
@@ -69,6 +75,7 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
         id: 'cell-1',
         type: WorkspaceCellType.math,
         content: '(2+3)*(7-4)/5',
+        output: '',
       ),
     ];
     _loadSnapshot();
@@ -159,6 +166,7 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
                 id: 'cell-1',
                 type: WorkspaceCellType.math,
                 content: '',
+                output: '',
               ),
             ]
           : snapshot.cells;
@@ -173,6 +181,7 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
           id: 'cell-${DateTime.now().microsecondsSinceEpoch}',
           type: type,
           content: '',
+          output: '',
         ),
       ];
     });
@@ -190,6 +199,111 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
           .map((cell) => cell.id == id ? cell.copyWith(content: content) : cell)
           .toList();
     });
+  }
+
+  void _setCellOutput(String id, String output) {
+    _cells = _cells
+        .map((cell) => cell.id == id ? cell.copyWith(output: output) : cell)
+        .toList();
+  }
+
+  void _runCell(WorkspaceCell cell) {
+    try {
+      if (cell.type == WorkspaceCellType.math) {
+        final expr = _toRuntimeExpression(cell.content);
+        final result = MathEngine.evaluate(expr);
+        setState(() {
+          _setCellOutput(cell.id, result == 'Error' ? 'Error' : '= $result');
+        });
+        return;
+      }
+
+      if (cell.type == WorkspaceCellType.graph) {
+        final expr = _toRuntimeExpression(cell.content);
+        final spots = GraphEngine.generatePoints(
+          expression: expr,
+          minX: -10,
+          maxX: 10,
+          resolution: 140,
+        );
+
+        setState(() {
+          _cellGraphSpots[cell.id] = spots;
+          _setCellOutput(cell.id, 'Rendered ${spots.length} points');
+        });
+        return;
+      }
+
+      if (cell.type == WorkspaceCellType.text) {
+        final text = cell.content;
+        final words = text.trim().isEmpty
+            ? 0
+            : text.trim().split(RegExp(r'\s+')).length;
+        setState(() {
+          _setCellOutput(cell.id, '$words words, ${text.length} chars');
+        });
+        return;
+      }
+
+      _runCodeCell(cell);
+    } catch (e) {
+      setState(() {
+        _setCellOutput(cell.id, 'Error: $e');
+      });
+    }
+  }
+
+  void _runCodeCell(WorkspaceCell cell) {
+    final lines = cell.content.split('\n');
+    final logs = <String>[];
+
+    for (final rawLine in lines) {
+      final line = rawLine.trim();
+      if (line.isEmpty) {
+        continue;
+      }
+
+      if (line.startsWith('print ')) {
+        final expr = line.substring(6).trim();
+        final value = MathEngine.evaluate(_toRuntimeExpression(expr));
+        logs.add(value == 'Error' ? 'print error: $expr' : value);
+        continue;
+      }
+
+      final assign = RegExp(r'^([a-zA-Z_]\w*)\s*=\s*(.+)$').firstMatch(line);
+      if (assign != null) {
+        final name = assign.group(1)!;
+        final expr = assign.group(2)!;
+        final value = MathEngine.evaluate(_toRuntimeExpression(expr));
+        if (value == 'Error') {
+          logs.add('$name assignment error');
+        } else {
+          _notebookVariables[name] = value;
+          logs.add('$name = $value');
+        }
+        continue;
+      }
+
+      logs.add('Unsupported statement: $line');
+    }
+
+    setState(() {
+      _setCellOutput(cell.id, logs.isEmpty ? 'No output' : logs.join('\n'));
+    });
+  }
+
+  String _toRuntimeExpression(String input) {
+    final maybeLatex = input.contains(r'\frac') ||
+        input.contains(r'\sqrt') ||
+        input.contains(r'\cdot') ||
+        input.contains(r'\times');
+
+    var expr = maybeLatex ? LatexInputAdapter.toExpression(input) : input;
+
+    _notebookVariables.forEach((name, value) {
+      expr = expr.replaceAll(RegExp('\\b$name\\b'), value);
+    });
+    return expr;
   }
 
   String _cellLabel(WorkspaceCellType type) {
@@ -435,6 +549,11 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
                                         ),
                                         const Spacer(),
                                         IconButton(
+                                          tooltip: 'Run cell',
+                                          onPressed: () => _runCell(cell),
+                                          icon: const Icon(Icons.play_arrow),
+                                        ),
+                                        IconButton(
                                           tooltip: 'Remove cell',
                                           onPressed: () => _removeCell(cell.id),
                                           icon: const Icon(Icons.delete_outline),
@@ -452,6 +571,49 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
                                       onChanged: (value) =>
                                           _updateCellContent(cell.id, value),
                                     ),
+                                    if (cell.output.isNotEmpty) ...[
+                                      const SizedBox(height: 8),
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(10),
+                                        decoration: BoxDecoration(
+                                          color: theme.colorScheme.surfaceContainerHighest
+                                              .withValues(alpha: 0.35),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: SelectableText(cell.output),
+                                      ),
+                                    ],
+                                    if (cell.type == WorkspaceCellType.graph &&
+                                        (_cellGraphSpots[cell.id]?.isNotEmpty ?? false)) ...[
+                                      const SizedBox(height: 10),
+                                      SizedBox(
+                                        height: 160,
+                                        child: LineChart(
+                                          LineChartData(
+                                            gridData: const FlGridData(show: true),
+                                            borderData: FlBorderData(show: false),
+                                            titlesData: const FlTitlesData(
+                                              topTitles: AxisTitles(
+                                                sideTitles: SideTitles(showTitles: false),
+                                              ),
+                                              rightTitles: AxisTitles(
+                                                sideTitles: SideTitles(showTitles: false),
+                                              ),
+                                            ),
+                                            lineBarsData: [
+                                              LineChartBarData(
+                                                spots: _cellGraphSpots[cell.id]!,
+                                                isCurved: true,
+                                                dotData: const FlDotData(show: false),
+                                                barWidth: 2,
+                                                color: theme.primaryColor,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),

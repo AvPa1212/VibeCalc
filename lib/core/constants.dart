@@ -9,7 +9,7 @@ class AppConstants {
   static const int displayPrecision = 10;
 
   // Graph resolution (number of points)
-  static const int graphResolution = 400;
+  static const int graphResolution = 220;
 
   // Default graph x-range
   static const double defaultMinX = -10.0;

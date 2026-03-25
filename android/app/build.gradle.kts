@@ -42,3 +42,12 @@ android {
 flutter {
     source = "../.."
 }
+
+androidComponents {
+    onVariants(selector().withBuildType("debug")) { variant ->
+        // Keep symbols in debug APK native libs to avoid flaky strip failures on
+        // some Windows setups (e.g., llvm-strip intermittently failing in
+        // :app:stripDebugDebugSymbols).
+        variant.packaging.jniLibs.keepDebugSymbols.add("**/*.so")
+    }
+}

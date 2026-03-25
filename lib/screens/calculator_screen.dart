@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../models/calculator_model.dart';
 import '../widgets/animated_calc_button.dart';
 import '../widgets/display_panel.dart';
@@ -9,17 +10,19 @@ import 'about_screen.dart';
 class CalculatorScreen extends StatelessWidget {
   const CalculatorScreen({super.key});
 
+  static const String _backspaceToken = '\u232b';
+
   @override
   Widget build(BuildContext context) {
     final model = context.watch<CalculatorModel>();
     final theme = Theme.of(context);
 
     const buttons = [
-      'AC', '⌫', '%', '/',
-      '7',  '8',  '9', '*',
-      '4',  '5',  '6', '-',
-      '1',  '2',  '3', '+',
-      '(',  '0',  '.', '=',
+      'AC', _backspaceToken, '%', '/',
+      '7', '8', '9', '*',
+      '4', '5', '6', '-',
+      '1', '2', '3', '+',
+      '(', '0', '.', '=',
     ];
 
     return Scaffold(
@@ -52,7 +55,6 @@ class CalculatorScreen extends StatelessWidget {
       ),
       endDrawer: HistoryDrawer(
         onItemSelected: (entry) {
-          // Load the result part of "expr = result" into the expression
           final parts = entry.split(' = ');
           if (parts.length == 2) {
             model.setExpression(parts[1]);
@@ -62,7 +64,6 @@ class CalculatorScreen extends StatelessWidget {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Display area - flexible, responsive
           Flexible(
             flex: 1,
             child: DisplayPanel(
@@ -71,55 +72,94 @@ class CalculatorScreen extends StatelessWidget {
               onDelete: model.deleteLast,
             ),
           ),
-
-          // Button grid - fills remaining space
           Expanded(
             flex: 2,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                const columns = 4;
-                const rows = 5;
-                const spacing = 2.0;
-
-                final itemWidth =
-                    (constraints.maxWidth - (columns - 1) * spacing) / columns;
-                final itemHeight =
-                    (constraints.maxHeight - (rows - 1) * spacing) / rows;
-                final ratio = itemWidth / itemHeight;
-
-                return GridView.builder(
-                  padding: EdgeInsets.zero,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: buttons.length,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: columns,
-                    childAspectRatio: ratio,
-                    crossAxisSpacing: spacing,
-                    mainAxisSpacing: spacing,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 6),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _QuickActionChip(
+                        label: 'MR',
+                        onTap: () => _handleMemoryRecall(context, model),
+                        highlight: model.hasMemory,
+                      ),
+                      _QuickActionChip(
+                        label: 'M+',
+                        onTap: () => _handleMemoryAdd(context, model),
+                      ),
+                      _QuickActionChip(
+                        label: 'M-',
+                        onTap: () => _handleMemorySubtract(context, model),
+                      ),
+                      _QuickActionChip(
+                        label: 'MC',
+                        onTap: model.memoryClear,
+                      ),
+                      _QuickActionChip(
+                        label: 'ANS',
+                        onTap: model.addAnswer,
+                      ),
+                      _QuickActionChip(
+                        label: '\u00B1',
+                        onTap: model.toggleSign,
+                      ),
+                    ],
                   ),
-                  itemBuilder: (_, i) {
-                    final label = buttons[i];
-                    final isOperator = ['/', '*', '-', '+'].contains(label);
-                    final isEquals = label == '=';
-                    final isSpecial = ['AC', '⌫', '%'].contains(label);
+                ),
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      const columns = 4;
+                      const rows = 5;
+                      const spacing = 2.0;
 
-                    Color? btnColor;
-                    if (isEquals) btnColor = theme.primaryColor;
-                    if (isSpecial) {
-                      btnColor = theme.colorScheme.surface.withValues(alpha: 0.6);
-                    }
+                      final itemWidth =
+                          (constraints.maxWidth - (columns - 1) * spacing) / columns;
+                      final itemHeight =
+                          (constraints.maxHeight - (rows - 1) * spacing) / rows;
+                      final ratio = itemWidth / itemHeight;
 
-                    return AnimatedCalcButton(
-                      label: label,
-                      onTap: () => _handleButton(label, model),
-                      isOperator: isOperator || isEquals,
-                      color: btnColor,
-                      textColor: isEquals ? Colors.black : null,
-                      glow: isEquals,
-                    );
-                  },
-                );
-              },
+                      return GridView.builder(
+                        padding: EdgeInsets.zero,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: buttons.length,
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: columns,
+                          childAspectRatio: ratio,
+                          crossAxisSpacing: spacing,
+                          mainAxisSpacing: spacing,
+                        ),
+                        itemBuilder: (_, i) {
+                          final label = buttons[i];
+                          final isOperator = ['/', '*', '-', '+'].contains(label);
+                          final isEquals = label == '=';
+                          final isSpecial = ['AC', _backspaceToken, '%'].contains(label);
+
+                          Color? btnColor;
+                          if (isEquals) btnColor = theme.primaryColor;
+                          if (isSpecial) {
+                            btnColor = theme.colorScheme.surface.withValues(alpha: 0.6);
+                          }
+
+                          return AnimatedCalcButton(
+                            label: label,
+                            onTap: () => _handleButton(label, model),
+                            isOperator: isOperator || isEquals,
+                            color: btnColor,
+                            textColor: isEquals ? Colors.black : null,
+                            glow: isEquals,
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -132,7 +172,7 @@ class CalculatorScreen extends StatelessWidget {
       case 'AC':
         model.clear();
         return;
-      case '⌫':
+      case _backspaceToken:
         model.deleteLast();
         return;
       case '=':
@@ -145,6 +185,30 @@ class CalculatorScreen extends StatelessWidget {
         model.add(label);
         return;
     }
+  }
+
+  void _handleMemoryRecall(BuildContext context, CalculatorModel model) {
+    if (!model.memoryRecall()) {
+      _showHint(context, 'Memory is empty');
+    }
+  }
+
+  void _handleMemoryAdd(BuildContext context, CalculatorModel model) {
+    if (!model.memoryAddFromCurrent()) {
+      _showHint(context, 'Enter a valid value first');
+    }
+  }
+
+  void _handleMemorySubtract(BuildContext context, CalculatorModel model) {
+    if (!model.memorySubtractFromCurrent()) {
+      _showHint(context, 'Enter a valid value first');
+    }
+  }
+
+  void _showHint(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(milliseconds: 900)),
+    );
   }
 
   void _showRewriteTrace(BuildContext context, CalculatorModel model) {
@@ -201,6 +265,38 @@ class CalculatorScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _QuickActionChip extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  final bool highlight;
+
+  const _QuickActionChip({
+    required this.label,
+    required this.onTap,
+    this.highlight = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ActionChip(
+      label: Text(label),
+      onPressed: onTap,
+      backgroundColor: highlight
+          ? theme.colorScheme.primary.withValues(alpha: 0.22)
+          : theme.colorScheme.surface.withValues(alpha: 0.55),
+      side: BorderSide(
+        color: highlight
+            ? theme.colorScheme.primary.withValues(alpha: 0.8)
+            : theme.colorScheme.outline.withValues(alpha: 0.5),
+      ),
+      labelStyle: theme.textTheme.labelLarge?.copyWith(
+        fontWeight: FontWeight.w700,
+      ),
     );
   }
 }

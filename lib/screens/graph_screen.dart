@@ -40,6 +40,7 @@ class _GraphScreenState extends State<GraphScreen> {
       resolution: AppConstants.graphResolution,
     );
     final (minY, maxY) = GraphEngine.calculateYBounds(spots);
+    
     setState(() {
       _spots = spots;
       _minY = minY;
@@ -151,73 +152,77 @@ class _GraphScreenState extends State<GraphScreen> {
                                 .withValues(alpha: 0.5)),
                       ),
                     )
-                  : LineChart(
-                      LineChartData(
-                        minX: _minX,
-                        maxX: _maxX,
-                        minY: _minY,
-                        maxY: _maxY,
-                        gridData: FlGridData(
-                          show: true,
-                          getDrawingHorizontalLine: (_) => FlLine(
-                              color: theme.colorScheme.onSurface
-                                  .withValues(alpha: 0.15),
-                              strokeWidth: 2.5),
-                          getDrawingVerticalLine: (_) => FlLine(
-                              color: theme.colorScheme.onSurface
-                                  .withValues(alpha: 0.15),
-                              strokeWidth: 2.5),
-                        ),
-                        borderData: FlBorderData(show: false),
-                        titlesData: FlTitlesData(
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              interval: (_maxX - _minX) / AppConstants.graphAxisDivisions,
-                              getTitlesWidget: (value, _) => Text(
-                                value.toStringAsPrecision(3),
-                                style: TextStyle(
-                                  color: theme.colorScheme.onSurface
-                                      .withValues(alpha: 0.7),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 40,
-                              getTitlesWidget: (value, _) => Text(
-                                value.toStringAsPrecision(3),
-                                style: TextStyle(
-                                  color: theme.colorScheme.onSurface
-                                      .withValues(alpha: 0.7),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                          topTitles: const AxisTitles(
-                              sideTitles: SideTitles(showTitles: false)),
-                          rightTitles: const AxisTitles(
-                              sideTitles: SideTitles(showTitles: false)),
-                        ),
-                        lineBarsData: [
-                          LineChartBarData(
-                            spots: _spots,
-                            isCurved: false,
-                            color: theme.primaryColor,
-                            barWidth: 2,
-                            dotData: const FlDotData(show: false),
-                            belowBarData: BarAreaData(
+                  : ExcludeSemantics(
+                      child: RepaintBoundary(
+                        child: LineChart(
+                          LineChartData(
+                            minX: _minX,
+                            maxX: _maxX,
+                            minY: _minY,
+                            maxY: _maxY,
+                            gridData: FlGridData(
                               show: true,
-                              color: theme.primaryColor.withValues(alpha: 0.1),
+                              getDrawingHorizontalLine: (_) => FlLine(
+                                  color: theme.colorScheme.onSurface
+                                      .withValues(alpha: 0.15),
+                                  strokeWidth: 2.5),
+                              getDrawingVerticalLine: (_) => FlLine(
+                                  color: theme.colorScheme.onSurface
+                                      .withValues(alpha: 0.15),
+                                  strokeWidth: 2.5),
                             ),
+                            borderData: FlBorderData(show: false),
+                            titlesData: FlTitlesData(
+                              bottomTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  interval: (_maxX - _minX) / AppConstants.graphAxisDivisions,
+                                  getTitlesWidget: (value, _) => Text(
+                                    value.toStringAsPrecision(3),
+                                    style: TextStyle(
+                                      color: theme.colorScheme.onSurface
+                                          .withValues(alpha: 0.7),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              leftTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  reservedSize: 40,
+                                  getTitlesWidget: (value, _) => Text(
+                                    value.toStringAsPrecision(3),
+                                    style: TextStyle(
+                                      color: theme.colorScheme.onSurface
+                                          .withValues(alpha: 0.7),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              topTitles: const AxisTitles(
+                                  sideTitles: SideTitles(showTitles: false)),
+                              rightTitles: const AxisTitles(
+                                  sideTitles: SideTitles(showTitles: false)),
+                            ),
+                            lineBarsData: [
+                              LineChartBarData(
+                                spots: _spots,
+                                isCurved: false,
+                                color: theme.primaryColor,
+                                barWidth: 2,
+                                dotData: const FlDotData(show: false),
+                                belowBarData: BarAreaData(
+                                  show: true,
+                                  color: theme.primaryColor.withValues(alpha: 0.1),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
             ),

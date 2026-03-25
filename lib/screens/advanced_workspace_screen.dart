@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 
@@ -39,6 +42,14 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
   final Map<String, _CellExecutionState> _cellExecution = {};
   final Map<String, List<CodeStep>> _codeStepTraces = {};
   int _executionBudgetMs = 80;
+  bool _isRunningAll = false;
+  bool _cancelRunAllRequested = false;
+  final Map<String, Offset> _nodeLayoutOverrides = {};
+  String? _draggingNodeId;
+  final List<_RunAllEvent> _runAllEvents = [];
+  DateTime? _runAllStartedAt;
+  DateTime? _runAllEndedAt;
+  Timer? _autoRecomputeDebounce;
 
   static const List<_ModuleGroup> _groups = [
     _ModuleGroup('1-3 Input / Core / Graphing', [
@@ -91,6 +102,7 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
 
   @override
   void dispose() {
+    _autoRecomputeDebounce?.cancel();
     _tabController.dispose();
     _inputController.dispose();
     _rulePatternController.dispose();
@@ -202,6 +214,7 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
       _cells = _cells.where((cell) => cell.id != id).toList();
       _cellGraphSpots.remove(id);
       _codeStepTraces.remove(id);
+      _nodeLayoutOverrides.remove(id);
       _recomputeDependencies();
     });
   }
@@ -215,7 +228,12 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
     });
 
     if (_autoRecompute) {
-      _runAllCells();
+      _autoRecomputeDebounce?.cancel();
+      _autoRecomputeDebounce = Timer(const Duration(milliseconds: 250), () {
+        if (mounted) {
+          _runAllCells();
+        }
+      });
     }
   }
 
@@ -304,10 +322,26 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
     }
   }
 
-  void _runAllCells() {
+  Future<void> _runAllCells() async {
+    if (_isRunningAll) {
+      setState(() {
+        _cancelRunAllRequested = true;
+      });
+      return;
+    }
+
+    setState(() {
+      _isRunningAll = true;
+      _cancelRunAllRequested = false;
+      _runAllEvents.clear();
+      _runAllStartedAt = DateTime.now();
+      _runAllEndedAt = null;
+    });
+
     _notebookVariables.clear();
     final order = NotebookDependencyEngine.topologicalOrder(_cells);
     final byId = {for (final c in _cells) c.id: c};
+    final cellsToRun = <WorkspaceCell>[];
 
     if (order.cycleCellIds.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -317,22 +351,179 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
           ),
         ),
       );
-      for (final c in _cells) {
-        _runCell(c);
+      cellsToRun.addAll(_cells);
+    } else {
+      for (final id in order.orderedCellIds) {
+        final cell = byId[id];
+        if (cell != null) {
+          cellsToRun.add(cell);
+        }
       }
-      return;
     }
 
-    for (final id in order.orderedCellIds) {
-      final cell = byId[id];
-      if (cell != null) {
-        _runCell(cell);
+    for (final cell in cellsToRun) {
+      if (_cancelRunAllRequested) {
+        break;
+      }
+      if (!mounted) return;
+
+      final start = DateTime.now();
+      _runCell(cell);
+      final end = DateTime.now();
+      final status = _cellExecution[cell.id]?.status ?? 'unknown';
+      setState(() {
+        _runAllEvents.add(
+          _RunAllEvent(
+            cellId: cell.id,
+            cellLabel: 'Cell ${_cellOrdinalById(cell.id)}',
+            status: status,
+            startedAt: start,
+            endedAt: end,
+          ),
+        );
+      });
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    if (!mounted) return;
+    final canceled = _cancelRunAllRequested;
+
+    setState(() {
+      _isRunningAll = false;
+      _cancelRunAllRequested = false;
+      _runAllEndedAt = DateTime.now();
+    });
+
+    if (canceled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Run All canceled.')),
+      );
+    }
+  }
+
+  _RunAllSummary _runAllSummary() {
+    final total = _runAllEvents.length;
+    var ok = 0;
+    var error = 0;
+    var other = 0;
+
+    for (final event in _runAllEvents) {
+      switch (event.status) {
+        case 'ok':
+          ok += 1;
+          break;
+        case 'error':
+          error += 1;
+          break;
+        default:
+          other += 1;
       }
     }
+
+    final start = _runAllStartedAt;
+    final end = _runAllEndedAt;
+    final durationMs = (start == null || end == null)
+        ? 0
+        : end.difference(start).inMilliseconds;
+
+    return _RunAllSummary(
+      total: total,
+      ok: ok,
+      error: error,
+      other: other,
+      durationMs: durationMs,
+    );
   }
 
   void _recomputeDependencies() {
     _dependencyEdges = NotebookDependencyEngine.buildEdges(_cells);
+  }
+
+  List<String> _changedKeys(
+    Map<String, String> before,
+    Map<String, String> after,
+  ) {
+    final keys = <String>{...before.keys, ...after.keys};
+    final changed = <String>[];
+    for (final key in keys) {
+      if (before[key] != after[key]) {
+        changed.add(key);
+      }
+    }
+    changed.sort();
+    return changed;
+  }
+
+  void _cancelRunAll() {
+    if (_isRunningAll) {
+      setState(() {
+        _cancelRunAllRequested = true;
+      });
+    }
+  }
+
+  List<_DependencyNode> _dependencyNodes() {
+    if (_cells.isEmpty) return const [];
+
+    final n = _cells.length;
+    final rows = n <= 4 ? 1 : 2;
+    final cols = rows == 1 ? n : (n / 2).ceil();
+
+    final out = <_DependencyNode>[];
+    for (var i = 0; i < n; i++) {
+      final row = rows == 1 ? 0 : i ~/ cols;
+      final col = rows == 1 ? i : i % cols;
+      final defaultX = cols == 1 ? 0.5 : col / (cols - 1);
+      final defaultY = rows == 1 ? 0.5 : (row == 0 ? 0.28 : 0.72);
+      final override = _nodeLayoutOverrides[_cells[i].id];
+      final x = (override?.dx ?? defaultX).clamp(0.05, 0.95);
+      final y = (override?.dy ?? defaultY).clamp(0.05, 0.95);
+      out.add(_DependencyNode(id: _cells[i].id, x: x, y: y, label: '${i + 1}'));
+    }
+    return out;
+  }
+
+  void _onGraphPanStart(DragStartDetails details, Size size) {
+    final nodes = _dependencyNodes();
+    if (nodes.isEmpty) return;
+
+    final local = details.localPosition;
+    String? nearest;
+    var best = double.infinity;
+
+    for (final n in nodes) {
+      final point = Offset(n.x * (size.width - 32) + 16, n.y * (size.height - 32) + 16);
+      final d = (point - local).distance;
+      if (d < best) {
+        best = d;
+        nearest = n.id;
+      }
+    }
+
+    if (nearest != null && best <= 22) {
+      setState(() {
+        _draggingNodeId = nearest;
+      });
+    }
+  }
+
+  void _onGraphPanUpdate(DragUpdateDetails details, Size size) {
+    final id = _draggingNodeId;
+    if (id == null) return;
+
+    final local = details.localPosition;
+    final nx = ((local.dx - 16) / (size.width - 32)).clamp(0.05, 0.95);
+    final ny = ((local.dy - 16) / (size.height - 32)).clamp(0.05, 0.95);
+    setState(() {
+      _nodeLayoutOverrides[id] = Offset(nx, ny);
+    });
+  }
+
+  void _onGraphPanEnd(DragEndDetails _) {
+    if (_draggingNodeId == null) return;
+    setState(() {
+      _draggingNodeId = null;
+    });
   }
 
   String _cellOrdinalById(String id) {
@@ -380,6 +571,8 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
 
     final hasError = _runCodeCell(cell, recordSteps: true);
     final steps = _codeStepTraces[cell.id] ?? const <CodeStep>[];
+    var cursor = steps.isEmpty ? -1 : 0;
+    final breakpointLines = <int>{};
 
     stopwatch.stop();
     setState(() {
@@ -394,43 +587,149 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
       isScrollControlled: true,
       showDragHandle: true,
       builder: (ctx) {
-        return SafeArea(
-          child: SizedBox(
-            height: MediaQuery.of(ctx).size.height * 0.75,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                  child: Text('Step Debug Trace', style: Theme.of(ctx).textTheme.titleLarge),
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            void nextStep() {
+              if (cursor < steps.length - 1) {
+                setSheetState(() {
+                  cursor += 1;
+                });
+              }
+            }
+
+            void continueToBreakpoint() {
+              if (cursor >= steps.length - 1) return;
+              var i = cursor + 1;
+              while (i < steps.length) {
+                if (breakpointLines.contains(steps[i].lineNumber)) {
+                  break;
+                }
+                i += 1;
+              }
+
+              setSheetState(() {
+                cursor = i < steps.length ? i : steps.length - 1;
+              });
+            }
+
+            return SafeArea(
+              child: SizedBox(
+                height: MediaQuery.of(ctx).size.height * 0.75,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                      child: Text('Step Debug Trace', style: Theme.of(ctx).textTheme.titleLarge),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: steps.isEmpty ? null : nextStep,
+                            icon: const Icon(Icons.skip_next),
+                            label: const Text('Next'),
+                          ),
+                          const SizedBox(width: 8),
+                          OutlinedButton.icon(
+                            onPressed: steps.isEmpty ? null : continueToBreakpoint,
+                            icon: const Icon(Icons.play_arrow),
+                            label: const Text('Continue'),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            steps.isEmpty ? 'No steps' : 'Cursor: ${cursor + 1}/${steps.length}',
+                            style: Theme.of(ctx).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: steps.isEmpty
+                          ? const Center(child: Text('No steps recorded.'))
+                          : ListView.builder(
+                              itemCount: steps.length,
+                              itemBuilder: (_, i) {
+                                final step = steps[i];
+                                final changed = _changedKeys(
+                                  step.beforeVariables,
+                                  step.afterVariables,
+                                );
+                                final before = step.beforeVariables.entries
+                                    .map((e) => '${e.key}=${e.value}')
+                                    .join(', ');
+                                final after = step.afterVariables.entries
+                                    .map((e) => '${e.key}=${e.value}')
+                                    .join(', ');
+
+                                final isCurrent = i == cursor;
+                                final hasBreakpoint = breakpointLines.contains(step.lineNumber);
+
+                                return Container(
+                                  color: isCurrent
+                                      ? Theme.of(ctx).colorScheme.primary.withValues(alpha: 0.08)
+                                      : null,
+                                  child: ListTile(
+                                    leading: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        IconButton(
+                                          tooltip: hasBreakpoint
+                                              ? 'Remove breakpoint'
+                                              : 'Set breakpoint',
+                                          onPressed: () {
+                                            setSheetState(() {
+                                              if (hasBreakpoint) {
+                                                breakpointLines.remove(step.lineNumber);
+                                              } else {
+                                                breakpointLines.add(step.lineNumber);
+                                              }
+                                            });
+                                          },
+                                          icon: Icon(
+                                            Icons.brightness_1,
+                                            size: 12,
+                                            color: hasBreakpoint
+                                                ? Colors.redAccent
+                                                : Theme.of(ctx).colorScheme.outline,
+                                          ),
+                                        ),
+                                        Text('${i + 1}'),
+                                      ],
+                                    ),
+                                    title: Text('L${step.lineNumber}: ${step.line}'),
+                                    subtitle: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(step.message),
+                                        Text('Before: ${before.isEmpty ? '-' : before}'),
+                                        Text('After: ${after.isEmpty ? '-' : after}'),
+                                        if (changed.isNotEmpty)
+                                          Wrap(
+                                            spacing: 6,
+                                            runSpacing: 6,
+                                            children: changed
+                                                .map(
+                                                  (k) => Chip(
+                                                    visualDensity: VisualDensity.compact,
+                                                    label: Text('$k changed'),
+                                                  ),
+                                                )
+                                                .toList(),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
                 ),
-                Expanded(
-                  child: steps.isEmpty
-                      ? const Center(child: Text('No steps recorded.'))
-                      : ListView.builder(
-                          itemCount: steps.length,
-                          itemBuilder: (_, i) {
-                            final step = steps[i];
-                            final before = step.beforeVariables.entries
-                                .map((e) => '${e.key}=${e.value}')
-                                .join(', ');
-                            final after = step.afterVariables.entries
-                                .map((e) => '${e.key}=${e.value}')
-                                .join(', ');
-                            return ListTile(
-                              leading: Text('${i + 1}'),
-                              title: Text('L${step.lineNumber}: ${step.line}'),
-                              subtitle: Text(
-                                '${step.message}\nBefore: ${before.isEmpty ? '-' : before}\nAfter: ${after.isEmpty ? '-' : after}',
-                              ),
-                              isThreeLine: true,
-                            );
-                          },
-                        ),
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -668,9 +967,9 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
                       label: const Text('Load Snapshot'),
                     ),
                     OutlinedButton.icon(
-                      onPressed: _runAllCells,
-                      icon: const Icon(Icons.playlist_play),
-                      label: const Text('Run All Cells'),
+                      onPressed: _isRunningAll ? _cancelRunAll : _runAllCells,
+                      icon: Icon(_isRunningAll ? Icons.stop_circle_outlined : Icons.playlist_play),
+                      label: Text(_isRunningAll ? 'Cancel Run All' : 'Run All Cells'),
                     ),
                   ],
                 ),
@@ -730,6 +1029,39 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
                     ),
                   ),
                 ],
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 180,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final size = Size(constraints.maxWidth, constraints.maxHeight);
+                      return ExcludeSemantics(
+                        child: RepaintBoundary(
+                          child: GestureDetector(
+                            onPanStart: (d) => _onGraphPanStart(d, size),
+                            onPanUpdate: (d) => _onGraphPanUpdate(d, size),
+                            onPanEnd: _onGraphPanEnd,
+                            child: InteractiveViewer(
+                              minScale: 0.8,
+                              maxScale: 2.5,
+                              boundaryMargin: const EdgeInsets.all(40),
+                              child: CustomPaint(
+                                size: size,
+                                painter: _DependencyGraphPainter(
+                                  nodes: _dependencyNodes(),
+                                  edges: _dependencyEdges,
+                                  lineColor: theme.colorScheme.outline,
+                                  nodeColor: theme.colorScheme.primary,
+                                  textColor: theme.colorScheme.onPrimary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
                 const SizedBox(height: 10),
                 Expanded(
                   child: _cells.isEmpty
@@ -834,27 +1166,31 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
                                       const SizedBox(height: 10),
                                       SizedBox(
                                         height: 160,
-                                        child: LineChart(
-                                          LineChartData(
-                                            gridData: const FlGridData(show: true),
-                                            borderData: FlBorderData(show: false),
-                                            titlesData: const FlTitlesData(
-                                              topTitles: AxisTitles(
-                                                sideTitles: SideTitles(showTitles: false),
-                                              ),
-                                              rightTitles: AxisTitles(
-                                                sideTitles: SideTitles(showTitles: false),
+                                        child: ExcludeSemantics(
+                                          child: RepaintBoundary(
+                                            child: LineChart(
+                                              LineChartData(
+                                                gridData: const FlGridData(show: true),
+                                                borderData: FlBorderData(show: false),
+                                                titlesData: const FlTitlesData(
+                                                  topTitles: AxisTitles(
+                                                    sideTitles: SideTitles(showTitles: false),
+                                                  ),
+                                                  rightTitles: AxisTitles(
+                                                    sideTitles: SideTitles(showTitles: false),
+                                                  ),
+                                                ),
+                                                lineBarsData: [
+                                                  LineChartBarData(
+                                                    spots: _cellGraphSpots[cell.id]!,
+                                                    isCurved: false,
+                                                    dotData: const FlDotData(show: false),
+                                                    barWidth: 2,
+                                                    color: theme.primaryColor,
+                                                  ),
+                                                ],
                                               ),
                                             ),
-                                            lineBarsData: [
-                                              LineChartBarData(
-                                                spots: _cellGraphSpots[cell.id]!,
-                                                isCurved: true,
-                                                dotData: const FlDotData(show: false),
-                                                barWidth: 2,
-                                                color: theme.primaryColor,
-                                              ),
-                                            ],
                                           ),
                                         ),
                                       ),
@@ -888,6 +1224,77 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
                           )
                           .toList(),
                     ),
+                  ),
+                ],
+                if (_runAllEvents.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Builder(
+                    builder: (_) {
+                      final summary = _runAllSummary();
+                      return Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerHighest
+                              .withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Execution Queue Summary: total ${summary.total}, ok ${summary.ok}, error ${summary.error}, other ${summary.other}, duration ${summary.durationMs}ms',
+                              style: theme.textTheme.bodySmall,
+                            ),
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              height: 120,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _runAllEvents.length,
+                                itemBuilder: (_, i) {
+                                  final event = _runAllEvents[i];
+                                  final runtimeMs = event.endedAt
+                                      .difference(event.startedAt)
+                                      .inMilliseconds;
+                                  Color color;
+                                  switch (event.status) {
+                                    case 'ok':
+                                      color = Colors.green;
+                                      break;
+                                    case 'error':
+                                      color = Colors.redAccent;
+                                      break;
+                                    default:
+                                      color = theme.colorScheme.outline;
+                                  }
+
+                                  return Container(
+                                    width: 170,
+                                    margin: const EdgeInsets.only(right: 8),
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: color.withValues(alpha: 0.7)),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(event.cellLabel, style: theme.textTheme.titleSmall),
+                                        const SizedBox(height: 4),
+                                        Text('Status: ${event.status}'),
+                                        Text('Runtime: ${runtimeMs}ms'),
+                                        Text('Start: ${event.startedAt.toIso8601String().split('T').last.substring(0, 8)}'),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                 ],
               ],
@@ -938,4 +1345,152 @@ class _CellExecutionState {
     this.runtimeMs = 0,
     this.message = '',
   });
+}
+
+class _DependencyNode {
+  final String id;
+  final double x;
+  final double y;
+  final String label;
+
+  const _DependencyNode({
+    required this.id,
+    required this.x,
+    required this.y,
+    required this.label,
+  });
+}
+
+class _RunAllEvent {
+  final String cellId;
+  final String cellLabel;
+  final String status;
+  final DateTime startedAt;
+  final DateTime endedAt;
+
+  const _RunAllEvent({
+    required this.cellId,
+    required this.cellLabel,
+    required this.status,
+    required this.startedAt,
+    required this.endedAt,
+  });
+}
+
+class _RunAllSummary {
+  final int total;
+  final int ok;
+  final int error;
+  final int other;
+  final int durationMs;
+
+  const _RunAllSummary({
+    required this.total,
+    required this.ok,
+    required this.error,
+    required this.other,
+    required this.durationMs,
+  });
+}
+
+class _DependencyGraphPainter extends CustomPainter {
+  final List<_DependencyNode> nodes;
+  final List<NotebookDependencyEdge> edges;
+  final Color lineColor;
+  final Color nodeColor;
+  final Color textColor;
+
+  const _DependencyGraphPainter({
+    required this.nodes,
+    required this.edges,
+    required this.lineColor,
+    required this.nodeColor,
+    required this.textColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final pointById = <String, Offset>{
+      for (final n in nodes)
+        n.id: Offset(n.x * (size.width - 32) + 16, n.y * (size.height - 32) + 16),
+    };
+
+    final edgePaint = Paint()
+      ..color = lineColor.withValues(alpha: 0.7)
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+
+    for (final e in edges) {
+      final from = pointById[e.fromCellId];
+      final to = pointById[e.toCellId];
+      if (from == null || to == null) continue;
+
+      canvas.drawLine(from, to, edgePaint);
+
+      final dir = to - from;
+      final len = dir.distance;
+      if (len > 0.0001) {
+        final unit = Offset(dir.dx / len, dir.dy / len);
+        final arrowBase = to - unit * 10;
+        final normal = Offset(-unit.dy, unit.dx);
+        final p1 = arrowBase + normal * 4;
+        final p2 = arrowBase - normal * 4;
+
+        final path = Path()
+          ..moveTo(to.dx, to.dy)
+          ..lineTo(p1.dx, p1.dy)
+          ..lineTo(p2.dx, p2.dy)
+          ..close();
+        canvas.drawPath(path, Paint()..color = lineColor.withValues(alpha: 0.8));
+      }
+    }
+
+    for (final n in nodes) {
+      final center = pointById[n.id]!;
+      final radius = math.max(12.0, 10 + n.label.length.toDouble());
+
+      canvas.drawCircle(center, radius, Paint()..color = nodeColor);
+
+      final tp = TextPainter(
+        text: TextSpan(
+          text: n.label,
+          style: TextStyle(
+            color: textColor,
+            fontWeight: FontWeight.w700,
+            fontSize: 11,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+
+      tp.paint(canvas, center - Offset(tp.width / 2, tp.height / 2));
+
+      final number = int.tryParse(n.label);
+      final label = number == null || number < 1 || number > nodes.length
+          ? n.label
+          : 'Cell $number';
+      final caption = TextPainter(
+        text: TextSpan(
+          text: label,
+          style: TextStyle(
+            color: lineColor,
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+
+      caption.paint(canvas, center + const Offset(-18, 15));
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DependencyGraphPainter oldDelegate) {
+    return oldDelegate.nodes != nodes ||
+        oldDelegate.edges != edges ||
+        oldDelegate.lineColor != lineColor ||
+        oldDelegate.nodeColor != nodeColor ||
+        oldDelegate.textColor != textColor;
+  }
 }

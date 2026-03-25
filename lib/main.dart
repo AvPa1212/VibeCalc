@@ -44,9 +44,9 @@ class VibeCalc extends StatelessWidget {
           builder: (context, child) {
             final wrapped = child ?? const SizedBox.shrink();
             if (Platform.isWindows) {
-              // Windows accessibility workaround: ExcludeSemantics prevents
-              // the accessibility bridge from creating orphaned nodes that crash
-              // with "nodes left pending" errors when rendering custom painters
+              // Windows accessibility bridge workaround: The accessibility tree
+              // is corrupted during initialization with "nodes left pending" errors.
+              // ExcludeSemantics prevents the bridge from creating orphaned nodes.
               return ExcludeSemantics(child: wrapped);
             }
             return wrapped;

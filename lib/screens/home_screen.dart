@@ -15,18 +15,30 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _index = 0;
 
-  final _screens = const [
-    CalculatorScreen(),
-    GraphScreen(),
-    ConverterScreen(),
-    AdvancedWorkspaceScreen(),
-    SettingsScreen(),
-  ];
+  late final Map<int, Widget> _screenCache = {};
+
+  Widget _buildScreen(int index) {
+    if (_screenCache.containsKey(index)) {
+      return _screenCache[index]!;
+    }
+
+    final screen = switch (index) {
+      0 => const CalculatorScreen(),
+      1 => const GraphScreen(),
+      2 => const ConverterScreen(),
+      3 => const AdvancedWorkspaceScreen(),
+      4 => const SettingsScreen(),
+      _ => const CalculatorScreen(),
+    };
+
+    _screenCache[index] = screen;
+    return screen;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_index],
+      body: _buildScreen(_index),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _index,
         onTap: (i) => setState(() => _index = i),

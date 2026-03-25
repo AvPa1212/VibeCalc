@@ -37,6 +37,7 @@ class _GraphScreenState extends State<GraphScreen> {
       expression: _expression,
       minX: _minX,
       maxX: _maxX,
+      resolution: AppConstants.graphResolution,
     );
     final (minY, maxY) = GraphEngine.calculateYBounds(spots);
     setState(() {
@@ -207,9 +208,9 @@ class _GraphScreenState extends State<GraphScreen> {
                         lineBarsData: [
                           LineChartBarData(
                             spots: _spots,
-                            isCurved: true,
+                            isCurved: false,
                             color: theme.primaryColor,
-                            barWidth: 2.5,
+                            barWidth: 2,
                             dotData: const FlDotData(show: false),
                             belowBarData: BarAreaData(
                               show: true,

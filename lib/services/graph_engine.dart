@@ -1,7 +1,9 @@
 import 'package:fl_chart/fl_chart.dart';
-import 'math_engine.dart';
+import 'package:math_expressions/math_expressions.dart';
 
 class GraphEngine {
+  static final GrammarParser _parser = GrammarParser();
+
   /// Generates graph points for f(x)
   static List<FlSpot> generatePoints({
     required String expression,
@@ -9,14 +11,26 @@ class GraphEngine {
     double maxX = 10,
     int resolution = 400,
   }) {
+    if (resolution <= 0 || minX == maxX) {
+      return const [];
+    }
+
     final List<FlSpot> spots = [];
 
     final step = (maxX - minX) / resolution;
 
+    final compiled = _compileExpression(expression);
+    if (compiled == null) {
+      return const [];
+    }
+
+    final context = ContextModel();
+    final xVar = Variable('x');
+
     for (int i = 0; i <= resolution; i++) {
       double x = minX + (i * step);
 
-      double? y = _safeEvaluate(expression, x);
+      final y = _safeEvaluateCompiled(compiled, context, xVar, x);
 
       if (y != null && y.isFinite) {
         spots.add(FlSpot(x, y));
@@ -26,21 +40,34 @@ class GraphEngine {
     return spots;
   }
 
-  /// Safe evaluation wrapper
-  static double? _safeEvaluate(String expression, double x) {
+  static Expression? _compileExpression(String expression) {
     try {
       String parsed = expression
           .replaceAll("π", "pi")
-          .replaceAll("√", "sqrt")
-          .replaceAll("x", "($x)");
+          .replaceAll("√", "sqrt");
 
-      String result = MathEngine.evaluate(parsed);
+      return _parser.parse(parsed);
+    } catch (_) {
+      return null;
+    }
+  }
 
-      if (result == "Error") return null;
+  /// Safe evaluation wrapper
+  static double? _safeEvaluateCompiled(
+    Expression expression,
+    ContextModel context,
+    Variable xVar,
+    double x,
+  ) {
+    try {
+      context.bindVariable(xVar, Number(x));
 
-      double value = double.parse(result);
+      final evaluated = expression.evaluate(EvaluationType.REAL, context);
+      final value = evaluated.toDouble();
 
-      if (value.isNaN || value.isInfinite) return null;
+      if (value.isNaN || value.isInfinite) {
+        return null;
+      }
 
       return value;
     } catch (_) {

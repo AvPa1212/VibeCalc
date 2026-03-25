@@ -3,6 +3,7 @@ import 'calculator_screen.dart';
 import 'graph_screen.dart';
 import 'converter_screen.dart';
 import 'settings_screen.dart';
+import 'advanced_workspace_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,6 +19,7 @@ class _HomeScreenState extends State<HomeScreen> {
     CalculatorScreen(),
     GraphScreen(),
     ConverterScreen(),
+    AdvancedWorkspaceScreen(),
     SettingsScreen(),
   ];
 
@@ -42,6 +44,10 @@ class _HomeScreenState extends State<HomeScreen> {
               icon: Icon(Icons.swap_horiz_outlined),
               activeIcon: Icon(Icons.swap_horiz),
               label: 'Convert'),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.hub_outlined),
+              activeIcon: Icon(Icons.hub),
+              label: 'Workspace'),
           BottomNavigationBarItem(
               icon: Icon(Icons.settings_outlined),
               activeIcon: Icon(Icons.settings),

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../models/workspace_cell.dart';
 import '../services/deterministic_expression_engine.dart';
 import '../services/rewrite_trace_engine.dart';
+import '../services/workspace_snapshot_service.dart';
 
 class AdvancedWorkspaceScreen extends StatefulWidget {
   const AdvancedWorkspaceScreen({super.key});
@@ -23,6 +25,7 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
   String _tree = 'AST will appear here.';
   List<RewriteStep> _traceSteps = const [];
   final List<RewriteRule> _userRules = [];
+  List<WorkspaceCell> _cells = [];
 
   static const List<_ModuleGroup> _groups = [
     _ModuleGroup('1-3 Input / Core / Graphing', [
@@ -60,7 +63,15 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
+    _cells = [
+      const WorkspaceCell(
+        id: 'cell-1',
+        type: WorkspaceCellType.math,
+        content: '(2+3)*(7-4)/5',
+      ),
+    ];
+    _loadSnapshot();
   }
 
   @override
@@ -117,6 +128,96 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
     });
   }
 
+  Future<void> _saveSnapshot() async {
+    final snapshot = WorkspaceSnapshot(
+      input: _inputController.text,
+      notation: _notation.name,
+      cells: _cells,
+    );
+
+    await WorkspaceSnapshotService.saveSnapshot(snapshot);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Workspace snapshot saved.')),
+    );
+  }
+
+  Future<void> _loadSnapshot() async {
+    final snapshot = await WorkspaceSnapshotService.loadSnapshot();
+    if (!mounted || snapshot == null) {
+      return;
+    }
+
+    setState(() {
+      _inputController.text = snapshot.input;
+      _notation = snapshot.notation == InputNotation.postfix.name
+          ? InputNotation.postfix
+          : InputNotation.infix;
+      _cells = snapshot.cells.isEmpty
+          ? [
+              const WorkspaceCell(
+                id: 'cell-1',
+                type: WorkspaceCellType.math,
+                content: '',
+              ),
+            ]
+          : snapshot.cells;
+    });
+  }
+
+  void _addCell(WorkspaceCellType type) {
+    setState(() {
+      _cells = [
+        ..._cells,
+        WorkspaceCell(
+          id: 'cell-${DateTime.now().microsecondsSinceEpoch}',
+          type: type,
+          content: '',
+        ),
+      ];
+    });
+  }
+
+  void _removeCell(String id) {
+    setState(() {
+      _cells = _cells.where((cell) => cell.id != id).toList();
+    });
+  }
+
+  void _updateCellContent(String id, String content) {
+    setState(() {
+      _cells = _cells
+          .map((cell) => cell.id == id ? cell.copyWith(content: content) : cell)
+          .toList();
+    });
+  }
+
+  String _cellLabel(WorkspaceCellType type) {
+    switch (type) {
+      case WorkspaceCellType.math:
+        return 'Math';
+      case WorkspaceCellType.graph:
+        return 'Graph';
+      case WorkspaceCellType.text:
+        return 'Text';
+      case WorkspaceCellType.code:
+        return 'Code';
+    }
+  }
+
+  IconData _cellIcon(WorkspaceCellType type) {
+    switch (type) {
+      case WorkspaceCellType.math:
+        return Icons.functions;
+      case WorkspaceCellType.graph:
+        return Icons.show_chart;
+      case WorkspaceCellType.text:
+        return Icons.notes;
+      case WorkspaceCellType.code:
+        return Icons.code;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -130,6 +231,7 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
             Tab(icon: Icon(Icons.input), text: 'Input Lab'),
             Tab(icon: Icon(Icons.alt_route), text: 'Trace'),
             Tab(icon: Icon(Icons.account_tree), text: 'AST'),
+            Tab(icon: Icon(Icons.note_alt_outlined), text: 'Notebook'),
             Tab(icon: Icon(Icons.hub), text: 'Modules'),
           ],
         ),
@@ -267,6 +369,97 @@ class _AdvancedWorkspaceScreenState extends State<AdvancedWorkspaceScreen>
                   ),
                 ),
               ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: () => _addCell(WorkspaceCellType.math),
+                      icon: const Icon(Icons.functions),
+                      label: const Text('Math Cell'),
+                    ),
+                    FilledButton.icon(
+                      onPressed: () => _addCell(WorkspaceCellType.graph),
+                      icon: const Icon(Icons.show_chart),
+                      label: const Text('Graph Cell'),
+                    ),
+                    FilledButton.icon(
+                      onPressed: () => _addCell(WorkspaceCellType.text),
+                      icon: const Icon(Icons.notes),
+                      label: const Text('Text Cell'),
+                    ),
+                    FilledButton.icon(
+                      onPressed: () => _addCell(WorkspaceCellType.code),
+                      icon: const Icon(Icons.code),
+                      label: const Text('Code Cell'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _saveSnapshot,
+                      icon: const Icon(Icons.save_outlined),
+                      label: const Text('Save Snapshot'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _loadSnapshot,
+                      icon: const Icon(Icons.download_outlined),
+                      label: const Text('Load Snapshot'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: _cells.isEmpty
+                      ? const Center(child: Text('No notebook cells yet.'))
+                      : ListView.builder(
+                          itemCount: _cells.length,
+                          itemBuilder: (_, i) {
+                            final cell = _cells[i];
+                            return Card(
+                              child: Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(_cellIcon(cell.type), size: 18),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          '${i + 1}. ${_cellLabel(cell.type)} Cell',
+                                          style: theme.textTheme.titleSmall,
+                                        ),
+                                        const Spacer(),
+                                        IconButton(
+                                          tooltip: 'Remove cell',
+                                          onPressed: () => _removeCell(cell.id),
+                                          icon: const Icon(Icons.delete_outline),
+                                        ),
+                                      ],
+                                    ),
+                                    TextFormField(
+                                      key: ValueKey(cell.id),
+                                      initialValue: cell.content,
+                                      maxLines: cell.type == WorkspaceCellType.code ? 8 : 4,
+                                      decoration: const InputDecoration(
+                                        border: OutlineInputBorder(),
+                                        hintText: 'Cell content',
+                                      ),
+                                      onChanged: (value) =>
+                                          _updateCellContent(cell.id, value),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
             ),
           ),
           ListView.builder(

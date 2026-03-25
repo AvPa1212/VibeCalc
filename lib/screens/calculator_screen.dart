@@ -29,6 +29,11 @@ class CalculatorScreen extends StatelessWidget {
         centerTitle: false,
         actions: [
           IconButton(
+            icon: const Icon(Icons.alt_route),
+            tooltip: 'Rewrite Trace',
+            onPressed: () => _showRewriteTrace(context, model),
+          ),
+          IconButton(
             icon: const Icon(Icons.info_outline),
             tooltip: 'About',
             onPressed: () => Navigator.push(
@@ -140,5 +145,62 @@ class CalculatorScreen extends StatelessWidget {
         model.add(label);
         return;
     }
+  }
+
+  void _showRewriteTrace(BuildContext context, CalculatorModel model) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (ctx) {
+        final steps = model.lastRewriteSteps;
+        final titleInput = model.lastEvaluatedInput.isEmpty
+            ? 'No evaluation yet'
+            : model.lastEvaluatedInput;
+
+        return SafeArea(
+          child: SizedBox(
+            height: MediaQuery.of(ctx).size.height * 0.7,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                  child: Text(
+                    'Rewrite Trace',
+                    style: Theme.of(ctx).textTheme.titleLarge,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Text(
+                    titleInput,
+                    style: Theme.of(ctx).textTheme.bodyMedium,
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: steps.isEmpty
+                      ? const Center(
+                          child: Text('No rewrite steps for the last evaluation.'),
+                        )
+                      : ListView.builder(
+                          itemCount: steps.length,
+                          itemBuilder: (_, i) {
+                            final step = steps[i];
+                            return ListTile(
+                              leading: Text('${i + 1}'),
+                              title: Text(step.ruleName),
+                              subtitle: Text('${step.before} -> ${step.after}'),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 }
